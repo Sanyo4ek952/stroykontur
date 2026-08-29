@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Строительный объект</title>
+  <rect width="512" height="512" rx="96" fill="#0f172a"/>
+  <path d="M112 344V168h56v176h-56Zm116 0V112h56v232h-56Zm116 0V216h56v128h-56Z" fill="#f8fafc"/>
+  <path d="M88 368h336" stroke="#34d399" stroke-linecap="round" stroke-width="32"/>
+</svg>

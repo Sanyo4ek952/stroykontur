@@ -1,0 +1,27 @@
+# dependencies
+/node_modules
+
+# Next.js output
+/.next
+/out
+
+# tests
+/coverage
+/playwright-report
+/test-results
+
+# local environment files
+.env*
+!.env.example
+
+# local tooling
+.pnpm-store/
+*.tsbuildinfo
+.DS_Store
+Thumbs.db
+
+# debug logs
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
