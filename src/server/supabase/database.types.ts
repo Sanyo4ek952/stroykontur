@@ -34,7 +34,120 @@ export type Database = {
   };
   public: {
     Tables: {
-      [_ in never]: never;
+      organizations: {
+        Row: {
+          created_at: string;
+          id: string;
+          legal_name: string | null;
+          name: string;
+          registration_code: string | null;
+          status: string;
+          tax_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          legal_name?: string | null;
+          name: string;
+          registration_code?: string | null;
+          status?: string;
+          tax_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          legal_name?: string | null;
+          name?: string;
+          registration_code?: string | null;
+          status?: string;
+          tax_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      project_organizations: {
+        Row: {
+          created_at: string;
+          id: string;
+          organization_id: string;
+          project_id: string;
+          relationship_type: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          organization_id: string;
+          project_id: string;
+          relationship_type: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          organization_id?: string;
+          project_id?: string;
+          relationship_type?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_organizations_organization_id_fkey";
+            columns: ["organization_id"];
+            isOneToOne: false;
+            referencedRelation: "organizations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_organizations_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      projects: {
+        Row: {
+          code: string;
+          created_at: string;
+          description: string | null;
+          end_date: string | null;
+          id: string;
+          name: string;
+          start_date: string | null;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          description?: string | null;
+          end_date?: string | null;
+          id?: string;
+          name: string;
+          start_date?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          description?: string | null;
+          end_date?: string | null;
+          id?: string;
+          name?: string;
+          start_date?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
