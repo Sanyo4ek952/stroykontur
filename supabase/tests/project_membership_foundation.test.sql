@@ -505,10 +505,11 @@ reset role;
 select set_config('request.jwt.claim.sub', '', true);
 set local role anon;
 
-select is(
-  (select count(*) from public.project_members),
-  0::bigint,
-  'anonymous users cannot read ProjectMember rows'
+select throws_ok(
+  $$select * from public.project_members$$,
+  '42501',
+  null,
+  'anonymous users have no ProjectMember table privilege'
 );
 
 reset role;
@@ -535,33 +536,36 @@ select throws_ok(
   null,
   'an authenticated user cannot self-enroll'
 );
-update public.project_members
-set status = 'inactive'
-where id = '31000000-0000-0000-0000-000000000001';
-
-select is(
-  (select status from public.project_members),
-  'active',
-  'an authenticated user cannot update their membership status'
+select throws_ok(
+  $$
+    update public.project_members
+    set status = 'inactive'
+    where id = '31000000-0000-0000-0000-000000000001'
+  $$,
+  '42501',
+  null,
+  'an authenticated user has no privilege to update membership status'
 );
 
-update public.project_members
-set project_organization_id = '22000000-0000-0000-0000-000000000002'
-where id = '31000000-0000-0000-0000-000000000001';
-
-select is(
-  (select project_organization_id from public.project_members),
-  '21000000-0000-0000-0000-000000000001'::uuid,
-  'an authenticated user cannot change their ProjectOrganization'
+select throws_ok(
+  $$
+    update public.project_members
+    set project_organization_id = '22000000-0000-0000-0000-000000000002'
+    where id = '31000000-0000-0000-0000-000000000001'
+  $$,
+  '42501',
+  null,
+  'an authenticated user has no privilege to change their ProjectOrganization'
 );
 
-delete from public.project_members
-where id = '31000000-0000-0000-0000-000000000001';
-
-select is(
-  (select count(*) from public.project_members),
-  1::bigint,
-  'an authenticated user cannot delete their membership'
+select throws_ok(
+  $$
+    delete from public.project_members
+    where id = '31000000-0000-0000-0000-000000000001'
+  $$,
+  '42501',
+  null,
+  'an authenticated user has no privilege to delete their membership'
 );
 
 reset role;

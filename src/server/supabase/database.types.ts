@@ -67,6 +67,85 @@ export type Database = {
         };
         Relationships: [];
       };
+      permissions: {
+        Row: {
+          created_at: string;
+          description: string;
+          id: string;
+          key: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          description: string;
+          id?: string;
+          key: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          description?: string;
+          id?: string;
+          key?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      project_member_roles: {
+        Row: {
+          created_at: string;
+          id: string;
+          project_id: string;
+          project_member_id: string;
+          role_id: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          project_id: string;
+          project_member_id: string;
+          role_id: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          project_id?: string;
+          project_member_id?: string;
+          role_id?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_member_roles_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_member_roles_project_member_fkey";
+            columns: ["project_id", "project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "project_member_roles_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       project_members: {
         Row: {
           created_at: string;
@@ -188,6 +267,72 @@ export type Database = {
           id?: string;
           name?: string;
           start_date?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      role_permissions: {
+        Row: {
+          created_at: string;
+          permission_id: string;
+          role_id: string;
+          scope_type: string;
+        };
+        Insert: {
+          created_at?: string;
+          permission_id: string;
+          role_id: string;
+          scope_type: string;
+        };
+        Update: {
+          created_at?: string;
+          permission_id?: string;
+          role_id?: string;
+          scope_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey";
+            columns: ["permission_id"];
+            isOneToOne: false;
+            referencedRelation: "permissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey";
+            columns: ["role_id"];
+            isOneToOne: false;
+            referencedRelation: "roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      roles: {
+        Row: {
+          code: string;
+          created_at: string;
+          description: string | null;
+          id: string;
+          name: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          name?: string;
           status?: string;
           updated_at?: string;
         };

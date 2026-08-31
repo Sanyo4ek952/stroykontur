@@ -395,8 +395,8 @@ select is(
       'public.project_organizations'::regclass
     )
   ),
-  0::bigint,
-  'no RLS policies grant business-table access before authorization exists'
+  3::bigint,
+  'TASK-007 adds one authenticated membership policy to each context table'
 );
 
 select ok(
