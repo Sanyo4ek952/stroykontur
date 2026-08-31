@@ -34,6 +34,119 @@ export type Database = {
   };
   public: {
     Tables: {
+      document_issues_for_work: {
+        Row: {
+          created_at: string;
+          document_revision_id: string;
+          id: string;
+          issued_at: string;
+          issued_by: string;
+          project_id: string;
+          technical_document_id: string;
+          withdrawal_reason: string | null;
+          withdrawn_at: string | null;
+          withdrawn_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          document_revision_id: string;
+          id?: string;
+          issued_at?: string;
+          issued_by: string;
+          project_id: string;
+          technical_document_id: string;
+          withdrawal_reason?: string | null;
+          withdrawn_at?: string | null;
+          withdrawn_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          document_revision_id?: string;
+          id?: string;
+          issued_at?: string;
+          issued_by?: string;
+          project_id?: string;
+          technical_document_id?: string;
+          withdrawal_reason?: string | null;
+          withdrawn_at?: string | null;
+          withdrawn_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_issues_for_work_document_revision_fkey";
+            columns: [
+              "project_id",
+              "technical_document_id",
+              "document_revision_id",
+            ];
+            isOneToOne: false;
+            referencedRelation: "document_revisions";
+            referencedColumns: ["project_id", "technical_document_id", "id"];
+          },
+          {
+            foreignKeyName: "document_issues_for_work_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "document_issues_for_work_technical_document_fkey";
+            columns: ["project_id", "technical_document_id"];
+            isOneToOne: false;
+            referencedRelation: "technical_documents";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      document_revisions: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          id: string;
+          project_id: string;
+          revision_code: string;
+          status: string;
+          technical_document_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          project_id: string;
+          revision_code: string;
+          status?: string;
+          technical_document_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          project_id?: string;
+          revision_code?: string;
+          status?: string;
+          technical_document_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_revisions_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "document_revisions_technical_document_fkey";
+            columns: ["project_id", "technical_document_id"];
+            isOneToOne: false;
+            referencedRelation: "technical_documents";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
       organizations: {
         Row: {
           created_at: string;
@@ -337,6 +450,44 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      technical_documents: {
+        Row: {
+          code: string;
+          created_at: string;
+          created_by: string;
+          id: string;
+          project_id: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          project_id: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          project_id?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "technical_documents_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: {

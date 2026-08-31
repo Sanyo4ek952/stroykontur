@@ -100,10 +100,44 @@ select ok(
       and has_table_privilege(
         'authenticated',
         format('%I.%I', pg_namespace.nspname, pg_class.relname),
-        'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER'
+        'DELETE, TRUNCATE, REFERENCES, TRIGGER'
       )
   ),
-  'authenticated has no write or administration privileges on application tables'
+  'authenticated has no delete or administration privileges on application tables'
+);
+
+select ok(
+  not exists (
+    select 1
+    from pg_catalog.pg_class
+    join pg_catalog.pg_namespace
+      on pg_namespace.oid = pg_class.relnamespace
+    cross join (
+      values ('INSERT', 'a'::"char"), ('UPDATE', 'w'::"char")
+    ) as operation(privilege_name, policy_command)
+    where pg_namespace.nspname = 'public'
+      and pg_class.relkind in ('r', 'p')
+      and not exists (
+        select 1
+        from pg_catalog.pg_depend
+        where pg_depend.classid = 'pg_class'::regclass
+          and pg_depend.objid = pg_class.oid
+          and pg_depend.deptype = 'e'
+      )
+      and has_table_privilege(
+        'authenticated',
+        format('%I.%I', pg_namespace.nspname, pg_class.relname),
+        operation.privilege_name
+      )
+      and not exists (
+        select 1
+        from pg_catalog.pg_policy
+        where pg_policy.polrelid = pg_class.oid
+          and pg_policy.polroles = array['authenticated'::regrole::oid]
+          and pg_policy.polcmd in (operation.policy_command, '*'::"char")
+      )
+  ),
+  'every authenticated business write privilege has an explicit matching RLS policy'
 );
 
 select ok(
