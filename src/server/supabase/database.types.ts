@@ -34,6 +34,78 @@ export type Database = {
   };
   public: {
     Tables: {
+      document_impacts: {
+        Row: {
+          created_at: string;
+          detected_at: string;
+          document_issue_for_work_id: string;
+          document_work_link_id: string;
+          id: string;
+          project_id: string;
+          status: string;
+          technical_document_id: string;
+          work_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          detected_at?: string;
+          document_issue_for_work_id: string;
+          document_work_link_id: string;
+          id?: string;
+          project_id: string;
+          status?: string;
+          technical_document_id: string;
+          work_id: string;
+        };
+        Update: {
+          created_at?: string;
+          detected_at?: string;
+          document_issue_for_work_id?: string;
+          document_work_link_id?: string;
+          id?: string;
+          project_id?: string;
+          status?: string;
+          technical_document_id?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_impacts_document_issue_for_work_fkey";
+            columns: [
+              "project_id",
+              "technical_document_id",
+              "document_issue_for_work_id",
+            ];
+            isOneToOne: false;
+            referencedRelation: "document_issues_for_work";
+            referencedColumns: ["project_id", "technical_document_id", "id"];
+          },
+          {
+            foreignKeyName: "document_impacts_document_work_link_fkey";
+            columns: [
+              "project_id",
+              "technical_document_id",
+              "work_id",
+              "document_work_link_id",
+            ];
+            isOneToOne: false;
+            referencedRelation: "document_work_links";
+            referencedColumns: [
+              "project_id",
+              "technical_document_id",
+              "work_id",
+              "id",
+            ];
+          },
+          {
+            foreignKeyName: "document_impacts_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       document_issues_for_work: {
         Row: {
           created_at: string;
@@ -143,6 +215,64 @@ export type Database = {
             columns: ["project_id", "technical_document_id"];
             isOneToOne: false;
             referencedRelation: "technical_documents";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      document_work_links: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          id: string;
+          project_id: string;
+          removal_reason: string | null;
+          removed_at: string | null;
+          removed_by: string | null;
+          technical_document_id: string;
+          work_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          project_id: string;
+          removal_reason?: string | null;
+          removed_at?: string | null;
+          removed_by?: string | null;
+          technical_document_id: string;
+          work_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          project_id?: string;
+          removal_reason?: string | null;
+          removed_at?: string | null;
+          removed_by?: string | null;
+          technical_document_id?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_work_links_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "document_work_links_technical_document_fkey";
+            columns: ["project_id", "technical_document_id"];
+            isOneToOne: false;
+            referencedRelation: "technical_documents";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "document_work_links_work_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
             referencedColumns: ["project_id", "id"];
           },
         ];
@@ -482,6 +612,223 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "technical_documents_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      work_assignments: {
+        Row: {
+          assigned_at: string;
+          assigned_by: string;
+          end_reason: string | null;
+          ended_at: string | null;
+          ended_by: string | null;
+          id: string;
+          project_id: string;
+          project_member_id: string;
+          work_id: string;
+        };
+        Insert: {
+          assigned_at?: string;
+          assigned_by: string;
+          end_reason?: string | null;
+          ended_at?: string | null;
+          ended_by?: string | null;
+          id?: string;
+          project_id: string;
+          project_member_id: string;
+          work_id: string;
+        };
+        Update: {
+          assigned_at?: string;
+          assigned_by?: string;
+          end_reason?: string | null;
+          ended_at?: string | null;
+          ended_by?: string | null;
+          id?: string;
+          project_id?: string;
+          project_member_id?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_assignments_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "work_assignments_project_member_fkey";
+            columns: ["project_id", "project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_assignments_work_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      work_dependencies: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          dependent_work_id: string;
+          depends_on_work_id: string;
+          id: string;
+          project_id: string;
+          removed_at: string | null;
+          removed_by: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          dependent_work_id: string;
+          depends_on_work_id: string;
+          id?: string;
+          project_id: string;
+          removed_at?: string | null;
+          removed_by?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          dependent_work_id?: string;
+          depends_on_work_id?: string;
+          id?: string;
+          project_id?: string;
+          removed_at?: string | null;
+          removed_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_dependencies_dependent_work_fkey";
+            columns: ["project_id", "dependent_work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_dependencies_depends_on_work_fkey";
+            columns: ["project_id", "depends_on_work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_dependencies_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      work_progress_entries: {
+        Row: {
+          created_at: string;
+          created_by: string;
+          id: string;
+          note: string | null;
+          project_id: string;
+          quantity: number;
+          work_date: string;
+          work_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          note?: string | null;
+          project_id: string;
+          quantity: number;
+          work_date: string;
+          work_id: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          note?: string | null;
+          project_id?: string;
+          quantity?: number;
+          work_date?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_progress_entries_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "work_progress_entries_work_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      works: {
+        Row: {
+          code: string;
+          created_at: string;
+          created_by: string;
+          description: string | null;
+          id: string;
+          planned_finish_date: string | null;
+          planned_quantity: number | null;
+          planned_start_date: string | null;
+          project_id: string;
+          status: string;
+          title: string;
+          unit: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          created_by: string;
+          description?: string | null;
+          id?: string;
+          planned_finish_date?: string | null;
+          planned_quantity?: number | null;
+          planned_start_date?: string | null;
+          project_id: string;
+          status?: string;
+          title: string;
+          unit?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          created_by?: string;
+          description?: string | null;
+          id?: string;
+          planned_finish_date?: string | null;
+          planned_quantity?: number | null;
+          planned_start_date?: string | null;
+          project_id?: string;
+          status?: string;
+          title?: string;
+          unit?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "works_project_id_fkey";
             columns: ["project_id"];
             isOneToOne: false;
             referencedRelation: "projects";
