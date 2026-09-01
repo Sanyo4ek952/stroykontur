@@ -23,6 +23,7 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:types": "node scripts/generate-database-types.mjs",
+    "demo:seed": "node scripts/seed-task-012-demo.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

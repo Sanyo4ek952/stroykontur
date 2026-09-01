@@ -65,10 +65,11 @@ test("protects the authenticated application boundary", async ({ page }) => {
   await page.getByRole("button", { name: "Войти" }).click();
 
   await expect(page).toHaveURL(/\/app$/);
-  await expect(
-    page.getByRole("heading", { name: "Защищённая область" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Проекты" })).toBeVisible();
   await expect(page.getByText(testUser.email)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Нет доступных проектов" }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Выйти" }).click();
 

@@ -34,6 +34,168 @@ export type Database = {
   };
   public: {
     Tables: {
+      acknowledgement_document_impacts: {
+        Row: {
+          acknowledgement_id: string;
+          created_at: string;
+          document_impact_id: string;
+          id: string;
+          notification_id: string;
+          project_id: string;
+          project_member_id: string;
+          task_id: string;
+        };
+        Insert: {
+          acknowledgement_id: string;
+          created_at?: string;
+          document_impact_id: string;
+          id?: string;
+          notification_id: string;
+          project_id: string;
+          project_member_id: string;
+          task_id: string;
+        };
+        Update: {
+          acknowledgement_id?: string;
+          created_at?: string;
+          document_impact_id?: string;
+          id?: string;
+          notification_id?: string;
+          project_id?: string;
+          project_member_id?: string;
+          task_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "acknowledgement_document_impacts_acknowledgement_fkey";
+            columns: ["project_id", "project_member_id", "acknowledgement_id"];
+            isOneToOne: false;
+            referencedRelation: "acknowledgements";
+            referencedColumns: ["project_id", "project_member_id", "id"];
+          },
+          {
+            foreignKeyName: "acknowledgement_document_impacts_document_impact_fkey";
+            columns: ["project_id", "document_impact_id"];
+            isOneToOne: false;
+            referencedRelation: "document_impacts";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "acknowledgement_document_impacts_notification_fkey";
+            columns: ["project_id", "notification_id"];
+            isOneToOne: true;
+            referencedRelation: "notifications";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "acknowledgement_document_impacts_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "acknowledgement_document_impacts_task_fkey";
+            columns: ["project_id", "task_id"];
+            isOneToOne: false;
+            referencedRelation: "tasks";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      acknowledgements: {
+        Row: {
+          acknowledged_at: string;
+          acknowledgement_type: string;
+          created_at: string;
+          id: string;
+          project_id: string;
+          project_member_id: string;
+        };
+        Insert: {
+          acknowledged_at?: string;
+          acknowledgement_type: string;
+          created_at?: string;
+          id?: string;
+          project_id: string;
+          project_member_id: string;
+        };
+        Update: {
+          acknowledged_at?: string;
+          acknowledgement_type?: string;
+          created_at?: string;
+          id?: string;
+          project_id?: string;
+          project_member_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "acknowledgements_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "acknowledgements_project_member_fkey";
+            columns: ["project_id", "project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      audit_entries: {
+        Row: {
+          action_key: string;
+          actor_project_member_id: string | null;
+          actor_user_id: string | null;
+          created_at: string;
+          id: string;
+          occurred_at: string;
+          project_id: string;
+          subject_id: string;
+          subject_type: string;
+        };
+        Insert: {
+          action_key: string;
+          actor_project_member_id?: string | null;
+          actor_user_id?: string | null;
+          created_at?: string;
+          id?: string;
+          occurred_at?: string;
+          project_id: string;
+          subject_id: string;
+          subject_type: string;
+        };
+        Update: {
+          action_key?: string;
+          actor_project_member_id?: string | null;
+          actor_user_id?: string | null;
+          created_at?: string;
+          id?: string;
+          occurred_at?: string;
+          project_id?: string;
+          subject_id?: string;
+          subject_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "audit_entries_actor_project_member_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "audit_entries_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       document_impacts: {
         Row: {
           created_at: string;
@@ -273,6 +435,96 @@ export type Database = {
             columns: ["project_id", "work_id"];
             isOneToOne: false;
             referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      events: {
+        Row: {
+          actor_user_id: string | null;
+          created_at: string;
+          event_type: string;
+          id: string;
+          occurred_at: string;
+          project_id: string;
+          subject_id: string;
+          subject_type: string;
+        };
+        Insert: {
+          actor_user_id?: string | null;
+          created_at?: string;
+          event_type: string;
+          id?: string;
+          occurred_at?: string;
+          project_id: string;
+          subject_id: string;
+          subject_type: string;
+        };
+        Update: {
+          actor_user_id?: string | null;
+          created_at?: string;
+          event_type?: string;
+          id?: string;
+          occurred_at?: string;
+          project_id?: string;
+          subject_id?: string;
+          subject_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "events_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          created_at: string;
+          event_id: string;
+          id: string;
+          project_id: string;
+          read_at: string | null;
+          recipient_project_member_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          event_id: string;
+          id?: string;
+          project_id: string;
+          read_at?: string | null;
+          recipient_project_member_id: string;
+        };
+        Update: {
+          created_at?: string;
+          event_id?: string;
+          id?: string;
+          project_id?: string;
+          read_at?: string | null;
+          recipient_project_member_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_event_fkey";
+            columns: ["project_id", "event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "notifications_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "notifications_recipient_project_member_fkey";
+            columns: ["project_id", "recipient_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
             referencedColumns: ["project_id", "id"];
           },
         ];
@@ -581,6 +833,100 @@ export type Database = {
         };
         Relationships: [];
       };
+      task_document_impacts: {
+        Row: {
+          created_at: string;
+          document_impact_id: string;
+          id: string;
+          project_id: string;
+          task_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          document_impact_id: string;
+          id?: string;
+          project_id: string;
+          task_id: string;
+        };
+        Update: {
+          created_at?: string;
+          document_impact_id?: string;
+          id?: string;
+          project_id?: string;
+          task_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "task_document_impacts_document_impact_fkey";
+            columns: ["project_id", "document_impact_id"];
+            isOneToOne: true;
+            referencedRelation: "document_impacts";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "task_document_impacts_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "task_document_impacts_task_fkey";
+            columns: ["project_id", "task_id"];
+            isOneToOne: true;
+            referencedRelation: "tasks";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      tasks: {
+        Row: {
+          assignee_project_member_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          project_id: string;
+          status: string;
+          task_type: string;
+          updated_at: string;
+        };
+        Insert: {
+          assignee_project_member_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          project_id: string;
+          status?: string;
+          task_type: string;
+          updated_at?: string;
+        };
+        Update: {
+          assignee_project_member_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          project_id?: string;
+          status?: string;
+          task_type?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assignee_project_member_fkey";
+            columns: ["project_id", "assignee_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "tasks_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       technical_documents: {
         Row: {
           code: string;
@@ -841,7 +1187,47 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
-      [_ in never]: never;
+      acknowledge_own_document_impact: {
+        Args: { notification_id: string };
+        Returns: string;
+      };
+      get_own_vertical_slice: {
+        Args: { notification_id: string };
+        Returns: {
+          acknowledged_at: string;
+          acknowledgement_id: string;
+          detected_at: string;
+          document_code: string;
+          document_title: string;
+          impact_status: string;
+          issue_state: string;
+          issued_at: string;
+          member_role_codes: string;
+          notification_created_at: string;
+          notification_read_at: string;
+          project_code: string;
+          project_name: string;
+          responsible_email: string;
+          revision_code: string;
+          revision_status: string;
+          task_status: string;
+          task_type: string;
+          work_code: string;
+          work_status: string;
+          work_title: string;
+        }[];
+      };
+      get_own_vertical_slice_audit: {
+        Args: { notification_id: string };
+        Returns: {
+          action_key: string;
+          occurred_at: string;
+        }[];
+      };
+      mark_own_notification_read: {
+        Args: { notification_id: string };
+        Returns: string;
+      };
     };
     Enums: {
       [_ in never]: never;
