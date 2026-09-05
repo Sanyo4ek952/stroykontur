@@ -104,3 +104,83 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+## Token-efficient task execution
+
+Work with the smallest context and verification scope that can safely complete the current task.
+
+### Context loading
+
+* Always read `AGENTS.md` and the current `TASK-XXX`.
+* Read only source-of-truth sections directly relevant to the task.
+* Do not reread entire large documents when a targeted section/search is sufficient.
+* Search the existing codebase before opening many files.
+* Open only files likely to be changed or required to understand a dependency.
+* Do not inspect unrelated modules for general awareness.
+* Reuse accepted ADRs and existing architectural decisions; do not re-derive them unless the current task conflicts with them.
+* Do not load future TASK files unless the current task explicitly depends on them.
+
+### Implementation scope
+
+* Implement only the requested behavior.
+* Prefer extending existing code over introducing new abstractions.
+* Do not perform unrelated refactors, cleanup, renaming, formatting, dependency upgrades, or speculative preparation for future tasks.
+* Do not create abstractions for a single use case unless required by an existing architectural rule.
+* Do not rewrite working code only to make it stylistically preferable.
+
+### Verification strategy
+
+Use risk-based verification instead of automatically running every available check.
+
+For ordinary localized TypeScript/UI changes:
+
+* run relevant targeted tests;
+* run `pnpm typecheck`;
+* run lint for affected code when practical.
+
+For database/schema/RLS changes:
+
+* run relevant database and RLS tests;
+* run generated type checks when schema types change.
+
+For Auth, permissions, project isolation, immutable history, cross-project links, or other security/data-integrity changes:
+
+* never reduce the relevant security/integration verification.
+
+For critical user workflows:
+
+* run the relevant Playwright scenario.
+
+Run `pnpm build` when the task changes:
+
+* Next.js routing/layout/config;
+* server/client boundaries;
+* environment handling;
+* dependencies;
+* build-time behavior;
+* or when preparing a milestone/merge where full validation is required.
+
+Do not rerun an unchanged expensive test suite multiple times after it has already passed unless subsequent changes can affect it.
+
+### Failure handling
+
+* If a targeted check fails, investigate that failure before expanding verification scope.
+* Do not launch broad exploratory checks without evidence that they are needed.
+* Fix only failures caused by or blocking the current task. Report unrelated pre-existing failures instead of silently expanding scope.
+
+### Completion
+
+Before finishing:
+
+* inspect `git diff`;
+* inspect `git status`;
+* verify no accidental unrelated changes were introduced.
+
+Keep the completion report concise:
+
+1. implemented;
+2. important changed files;
+3. checks actually run and their result;
+4. migration/RLS implications if applicable;
+5. real unresolved blocker or assumption, if any.
+
+Do not repeat the task specification or provide a long narrative of the implementation.

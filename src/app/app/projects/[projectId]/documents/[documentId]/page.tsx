@@ -7,7 +7,9 @@ import {
   getDocumentCapabilities,
   getDocumentDetails,
 } from "@/modules/documents/server/queries";
+import { getDocumentWorkLinkData } from "@/modules/document-work-links/server/queries";
 
+import { DocumentWorkLinkManager } from "../../document-work-link-manager";
 import {
   Detail,
   EmptyState,
@@ -20,18 +22,26 @@ export const metadata: Metadata = { title: "Карточка документа"
 
 export default async function TechnicalDocumentDetailsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ documentId: string; projectId: string }>;
+  searchParams: Promise<{ workSearch?: string }>;
 }) {
   const { documentId, projectId } = await params;
+  const { workSearch = "" } = await searchParams;
   const parsedDocumentId = postgresUuidSchema.safeParse(documentId);
   if (!parsedDocumentId.success) {
     return <EmptyState title="Документ не найден." />;
   }
 
-  const [document, capabilities] = await Promise.all([
+  const [document, capabilities, linkData] = await Promise.all([
     getDocumentDetails(projectId, parsedDocumentId.data),
     getDocumentCapabilities(projectId),
+    getDocumentWorkLinkData(
+      projectId,
+      parsedDocumentId.data,
+      workSearch.trim(),
+    ),
   ]);
   if (!document) return <EmptyState title="Документ не найден." />;
 
@@ -71,6 +81,24 @@ export default async function TechnicalDocumentDetailsPage({
           </Detail>
         </dl>
       </section>
+
+      <DocumentWorkLinkManager
+        canManage={linkData.canManage}
+        candidates={linkData.candidates}
+        fixedId={document.id}
+        items={linkData.links.map((link) => ({
+          code: link.work.code,
+          id: link.id,
+          removedAt: link.removed_at,
+          removalReason: link.removal_reason,
+          secondary: `Статус: ${link.work.status}${link.work.responsibleLabel ? ` · Ответственный: ${link.work.responsibleLabel}` : ""}`,
+          title: link.work.title,
+          url: `/app/projects/${projectId}/works/${link.work.id}`,
+        }))}
+        mode="document"
+        projectId={projectId}
+        search={workSearch}
+      />
 
       <section className="mt-6">
         <h2 className="text-xl font-semibold text-slate-950">

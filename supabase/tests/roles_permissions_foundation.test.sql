@@ -481,12 +481,12 @@ select is(
 
 select is(
   (select count(*) from public.permissions),
-  70::bigint,
+  71::bigint,
   'all canonical permission keys are seeded'
 );
 select is(
   (select count(*) from public.permissions where status = 'active'),
-  70::bigint,
+  71::bigint,
   'all canonical permissions are active'
 );
 select is(
@@ -531,6 +531,7 @@ select is(
     'documents.revision.create',
     'documents.submit',
     'documents.view',
+    'documents.work_link.manage',
     'estimate.manage',
     'estimate.view',
     'geodesy.deviation.create',
@@ -1065,7 +1066,7 @@ select is(
 );
 select is(
   (select count(*) from public.permissions),
-  70::bigint,
+  71::bigint,
   'authenticated User A can read the Permission catalog'
 );
 select ok(

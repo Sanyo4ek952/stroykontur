@@ -945,6 +945,7 @@ safety.work_permit.issue
 - `documents.submit`
 - `documents.approve`
 - `documents.issue_for_work`
+- `documents.work_link.manage` — владелец: `pto`, scope: `PROJECT`
 - `documents.annul`
 
 ## Production

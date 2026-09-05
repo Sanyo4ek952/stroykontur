@@ -7,15 +7,27 @@ const demoCredentials = {
   password: "Demo-Task012-2026!",
 };
 
+const workCreatorCredentials = {
+  email: "work.manager@construction.test",
+  password: "Work-Task015-2026!",
+};
+
 const ids = {
   organization: "00120000-0000-0000-0000-000000000001",
   project: "10120000-0000-0000-0000-000000000001",
   projectOrganization: "20120000-0000-0000-0000-000000000001",
   projectMember: "30120000-0000-0000-0000-000000000001",
+  workCreatorProjectMember: "30120000-0000-0000-0000-000000000002",
   technicalDocument: "50120000-0000-0000-0000-000000000001",
   documentRevision: "60120000-0000-0000-0000-000000000001",
   work: "70120000-0000-0000-0000-000000000001",
+  prerequisiteWork: "70120000-0000-0000-0000-000000000002",
+  blockedWork: "70120000-0000-0000-0000-000000000003",
   workAssignment: "71120000-0000-0000-0000-000000000001",
+  blockedWorkAssignment: "71120000-0000-0000-0000-000000000002",
+  workDependencyPrerequisite: "72120000-0000-0000-0000-000000000001",
+  workDependencyBlocked: "72120000-0000-0000-0000-000000000002",
+  workProgress: "73120000-0000-0000-0000-000000000001",
   documentWorkLink: "80120000-0000-0000-0000-000000000001",
   documentIssueForWork: "90120000-0000-0000-0000-000000000001",
 };
@@ -73,7 +85,7 @@ async function insertOne(client, table, value) {
   }
 }
 
-async function findOrCreateDemoUser(adminClient) {
+async function findOrCreateDemoUser(adminClient, credentials) {
   const { data: existingUsers, error: listError } =
     await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (listError) {
@@ -81,12 +93,12 @@ async function findOrCreateDemoUser(adminClient) {
   }
 
   const existing = existingUsers.users.find(
-    (user) => user.email === demoCredentials.email,
+    (user) => user.email === credentials.email,
   );
   if (existing) {
     const { error } = await adminClient.auth.admin.updateUserById(existing.id, {
       email_confirm: true,
-      password: demoCredentials.password,
+      password: credentials.password,
     });
     if (error) {
       throw new Error(`Не удалось обновить local demo user: ${error.code}`);
@@ -95,7 +107,7 @@ async function findOrCreateDemoUser(adminClient) {
   }
 
   const { data, error } = await adminClient.auth.admin.createUser({
-    ...demoCredentials,
+    ...credentials,
     email_confirm: true,
   });
   if (error || !data.user) {
@@ -109,7 +121,11 @@ async function main() {
   const adminClient = createClient(url, privilegedKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const userId = await findOrCreateDemoUser(adminClient);
+  const userId = await findOrCreateDemoUser(adminClient, demoCredentials);
+  const workCreatorUserId = await findOrCreateDemoUser(
+    adminClient,
+    workCreatorCredentials,
+  );
 
   const { data: existingProject, error: existingProjectError } =
     await adminClient
@@ -146,6 +162,12 @@ async function main() {
       project_organization_id: ids.projectOrganization,
       user_id: userId,
     });
+    await insertOne(adminClient, "project_members", {
+      id: ids.workCreatorProjectMember,
+      project_id: ids.project,
+      project_organization_id: ids.projectOrganization,
+      user_id: workCreatorUserId,
+    });
 
     const { data: ptoRole, error: ptoRoleError } = await adminClient
       .from("roles")
@@ -159,6 +181,24 @@ async function main() {
       project_id: ids.project,
       project_member_id: ids.projectMember,
       role_id: ptoRole.id,
+    });
+    const {
+      data: constructionDirectorRole,
+      error: constructionDirectorRoleError,
+    } = await adminClient
+      .from("roles")
+      .select("id")
+      .eq("code", "construction_director")
+      .single();
+    if (constructionDirectorRoleError) {
+      throw new Error(
+        `Не найдена существующая роль construction_director: ${constructionDirectorRoleError.code}`,
+      );
+    }
+    await insertOne(adminClient, "project_member_roles", {
+      project_id: ids.project,
+      project_member_id: ids.workCreatorProjectMember,
+      role_id: constructionDirectorRole.id,
     });
     await insertOne(adminClient, "technical_documents", {
       id: ids.technicalDocument,
@@ -181,7 +221,35 @@ async function main() {
       code: "WORK-FND-001",
       title: "Армирование фундаментной плиты секции 1",
       status: "READY",
+      planned_quantity: 120,
+      unit: "т",
+      planned_start_date: "2026-08-20",
+      planned_finish_date: "2026-09-20",
       created_by: userId,
+    });
+    await insertOne(adminClient, "works", {
+      id: ids.prerequisiteWork,
+      project_id: ids.project,
+      code: "WORK-FND-000",
+      title: "Подготовка основания фундаментной плиты",
+      status: "CLOSED",
+      planned_quantity: 800,
+      unit: "м²",
+      planned_start_date: "2026-08-01",
+      planned_finish_date: "2026-08-19",
+      created_by: workCreatorUserId,
+    });
+    await insertOne(adminClient, "works", {
+      id: ids.blockedWork,
+      project_id: ids.project,
+      code: "WORK-FND-002",
+      title: "Бетонирование фундаментной плиты секции 1",
+      status: "PLANNED",
+      planned_quantity: 640,
+      unit: "м³",
+      planned_start_date: "2026-09-21",
+      planned_finish_date: "2026-09-23",
+      created_by: workCreatorUserId,
     });
     await insertOne(adminClient, "work_assignments", {
       id: ids.workAssignment,
@@ -189,6 +257,36 @@ async function main() {
       work_id: ids.work,
       project_member_id: ids.projectMember,
       assigned_by: userId,
+    });
+    await insertOne(adminClient, "work_assignments", {
+      id: ids.blockedWorkAssignment,
+      project_id: ids.project,
+      work_id: ids.blockedWork,
+      project_member_id: ids.workCreatorProjectMember,
+      assigned_by: userId,
+    });
+    await insertOne(adminClient, "work_dependencies", {
+      id: ids.workDependencyPrerequisite,
+      project_id: ids.project,
+      dependent_work_id: ids.work,
+      depends_on_work_id: ids.prerequisiteWork,
+      created_by: workCreatorUserId,
+    });
+    await insertOne(adminClient, "work_dependencies", {
+      id: ids.workDependencyBlocked,
+      project_id: ids.project,
+      dependent_work_id: ids.blockedWork,
+      depends_on_work_id: ids.work,
+      created_by: workCreatorUserId,
+    });
+    await insertOne(adminClient, "work_progress_entries", {
+      id: ids.workProgress,
+      project_id: ids.project,
+      work_id: ids.work,
+      work_date: "2026-09-01",
+      quantity: 18.5,
+      note: "Смонтирован первый участок армирования.",
+      created_by: userId,
     });
     await insertOne(adminClient, "document_work_links", {
       id: ids.documentWorkLink,
@@ -215,6 +313,14 @@ async function main() {
     throw new Error(`Demo credential verification failed: ${loginError.code}`);
   }
   await loginClient.auth.signOut({ scope: "local" });
+  const { error: workCreatorLoginError } =
+    await loginClient.auth.signInWithPassword(workCreatorCredentials);
+  if (workCreatorLoginError) {
+    throw new Error(
+      `Work creator credential verification failed: ${workCreatorLoginError.code}`,
+    );
+  }
+  await loginClient.auth.signOut({ scope: "local" });
 
   const { data: notification, error: notificationError } = await adminClient
     .from("notifications")
@@ -238,6 +344,8 @@ async function main() {
   console.log("TASK-012 local demo готов.");
   console.log(`Логин: ${demoCredentials.email}`);
   console.log(`Пароль: ${demoCredentials.password}`);
+  console.log(`Логин для создания Work: ${workCreatorCredentials.email}`);
+  console.log(`Пароль для создания Work: ${workCreatorCredentials.password}`);
   console.log(
     notification.read_at === null && acknowledgementCount === 0
       ? "Начальное состояние: Notification unread, Acknowledgement absent."

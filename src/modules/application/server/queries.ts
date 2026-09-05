@@ -214,49 +214,6 @@ export async function getOwnProjectTasks(projectId: string) {
   return data;
 }
 
-export async function getProjectWorks(
-  projectId: string,
-  ownProjectMemberId: string | null,
-) {
-  const supabase = await createServerSupabaseClient();
-  const { data: works, error } = await supabase
-    .from("works")
-    .select(
-      "id, code, title, status, planned_quantity, unit, planned_start_date, planned_finish_date",
-    )
-    .eq("project_id", projectId)
-    .order("code");
-
-  if (error) queryError("Не удалось загрузить работы проекта.");
-  if (works.length === 0) return [];
-
-  const { data: assignments, error: assignmentsError } = await supabase
-    .from("work_assignments")
-    .select("work_id, project_member_id")
-    .eq("project_id", projectId)
-    .is("ended_at", null)
-    .in(
-      "work_id",
-      works.map((work) => work.id),
-    );
-
-  if (assignmentsError) queryError("Не удалось загрузить ответственных.");
-
-  return works.map((work) => {
-    const assignment = assignments.find(
-      (candidate) => candidate.work_id === work.id,
-    );
-    return {
-      ...work,
-      responsibleLabel: !assignment
-        ? null
-        : assignment.project_member_id === ownProjectMemberId
-          ? "Вы"
-          : "Участник проекта",
-    };
-  });
-}
-
 export async function getOwnProjectNotifications(projectId: string) {
   const supabase = await createServerSupabaseClient();
   const { data: notifications, error } = await supabase
