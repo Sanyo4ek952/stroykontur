@@ -214,51 +214,6 @@ export async function getOwnProjectTasks(projectId: string) {
   return data;
 }
 
-export async function getProjectDocuments(projectId: string) {
-  const supabase = await createServerSupabaseClient();
-  const { data: documents, error } = await supabase
-    .from("technical_documents")
-    .select("id, code, title, updated_at")
-    .eq("project_id", projectId)
-    .order("code");
-
-  if (error) queryError("Не удалось загрузить документы проекта.");
-  if (documents.length === 0) return [];
-
-  const documentIds = documents.map((document) => document.id);
-  const [revisionResult, issueResult] = await Promise.all([
-    supabase
-      .from("document_revisions")
-      .select("technical_document_id, revision_code, status, created_at")
-      .eq("project_id", projectId)
-      .in("technical_document_id", documentIds)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("document_issues_for_work")
-      .select(
-        "technical_document_id, document_revision_id, issued_at, withdrawn_at",
-      )
-      .eq("project_id", projectId)
-      .in("technical_document_id", documentIds)
-      .order("issued_at", { ascending: false }),
-  ]);
-
-  if (revisionResult.error || issueResult.error) {
-    queryError("Не удалось загрузить состояние документов.");
-  }
-
-  return documents.map((document) => ({
-    ...document,
-    currentIssue: issueResult.data.find(
-      (issue) =>
-        issue.technical_document_id === document.id && !issue.withdrawn_at,
-    ),
-    latestRevision: revisionResult.data.find(
-      (revision) => revision.technical_document_id === document.id,
-    ),
-  }));
-}
-
 export async function getProjectWorks(
   projectId: string,
   ownProjectMemberId: string | null,
