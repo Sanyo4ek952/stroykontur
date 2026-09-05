@@ -1224,6 +1224,14 @@ export type Database = {
           occurred_at: string;
         }[];
       };
+      issue_document_revision_for_work: {
+        Args: {
+          p_document_revision_id: string;
+          p_project_id: string;
+          p_technical_document_id: string;
+        };
+        Returns: string;
+      };
       mark_own_notification_read: {
         Args: { notification_id: string };
         Returns: string;

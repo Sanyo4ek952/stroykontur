@@ -17,6 +17,7 @@ import {
   PageIntro,
   StatusBadge,
 } from "../../ui";
+import { IssueForWorkForm } from "./issue-for-work-form";
 
 export const metadata: Metadata = { title: "Карточка документа" };
 
@@ -46,6 +47,9 @@ export default async function TechnicalDocumentDetailsPage({
   if (!document) return <EmptyState title="Документ не найден." />;
 
   const documentPath = `/app/projects/${projectId}/documents/${document.id}`;
+  const currentIssue = document.issues.find(
+    ({ withdrawn_at }) => !withdrawn_at,
+  );
 
   return (
     <>
@@ -80,6 +84,17 @@ export default async function TechnicalDocumentDetailsPage({
             {formatDateTime(document.updated_at)}
           </Detail>
         </dl>
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <h2 className="text-lg font-semibold text-slate-950">
+          Текущая производственная ревизия
+        </h2>
+        <p className="mt-2 text-sm text-slate-700">
+          {currentIssue
+            ? `Ревизия ${currentIssue.revisionCode}, выдана ${formatDateTime(currentIssue.issued_at)}.`
+            : "Документ ещё не выдавался в производство."}
+        </p>
       </section>
 
       <DocumentWorkLinkManager
@@ -124,6 +139,17 @@ export default async function TechnicalDocumentDetailsPage({
                   </p>
                 </div>
                 <StatusBadge status={revision.status} />
+                {revision.status === "approved" &&
+                capabilities.canIssueForWork &&
+                currentIssue?.document_revision_id !== revision.id ? (
+                  <IssueForWorkForm
+                    currentRevisionCode={currentIssue?.revisionCode ?? null}
+                    documentId={document.id}
+                    projectId={projectId}
+                    revisionCode={revision.revision_code}
+                    revisionId={revision.id}
+                  />
+                ) : null}
               </li>
             ))}
           </ol>

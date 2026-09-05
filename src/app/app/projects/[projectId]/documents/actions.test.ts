@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   createDocumentRevisionCommand: vi.fn(),
   createTechnicalDocumentCommand: vi.fn(),
+  issueDocumentRevisionForWorkCommand: vi.fn(),
   redirect: vi.fn(),
   requireUser: vi.fn(async () => ({ id: "user-id" })),
 }));
@@ -23,6 +24,8 @@ vi.mock("@/modules/documents/server/commands", () => {
     createDocumentRevisionCommand: mocks.createDocumentRevisionCommand,
     createTechnicalDocumentCommand: mocks.createTechnicalDocumentCommand,
     DocumentCommandError,
+    issueDocumentRevisionForWorkCommand:
+      mocks.issueDocumentRevisionForWorkCommand,
   };
 });
 
@@ -31,6 +34,7 @@ import { DocumentCommandError } from "@/modules/documents/server/commands";
 import {
   createDocumentRevision,
   createTechnicalDocument,
+  issueDocumentRevisionForWork,
   type DocumentActionState,
 } from "./actions";
 
@@ -81,5 +85,48 @@ describe("document actions", () => {
       message: "Ревизия с таким кодом уже существует.",
     });
     expect(mocks.redirect).not.toHaveBeenCalled();
+  });
+
+  it("returns a safe forbidden issue-for-work message", async () => {
+    mocks.issueDocumentRevisionForWorkCommand.mockRejectedValue(
+      new DocumentCommandError("FORBIDDEN"),
+    );
+
+    const result = await issueDocumentRevisionForWork(
+      projectId,
+      documentId,
+      "60120000-0000-0000-0000-000000000001",
+      initialState,
+      new FormData(),
+    );
+
+    expect(result).toEqual({
+      message: "Недостаточно прав для выполнения операции.",
+    });
+  });
+
+  it("issues a validated revision through the controlled command", async () => {
+    const revisionId = "60120000-0000-0000-0000-000000000001";
+    mocks.issueDocumentRevisionForWorkCommand.mockResolvedValue({
+      id: "90120000-0000-0000-0000-000000000001",
+    });
+
+    const result = await issueDocumentRevisionForWork(
+      projectId,
+      documentId,
+      revisionId,
+      initialState,
+      new FormData(),
+    );
+
+    expect(mocks.issueDocumentRevisionForWorkCommand).toHaveBeenCalledWith({
+      documentId,
+      projectId,
+      revisionId,
+    });
+    expect(result).toEqual({
+      message: "Ревизия выдана в производство.",
+      success: true,
+    });
   });
 });

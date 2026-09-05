@@ -179,7 +179,11 @@ export async function getDocumentCapabilities(projectId: string) {
     ...new Set(assignments.map(({ role_id }) => role_id)),
   ];
   if (assignedRoleIds.length === 0) {
-    return { canCreateDocument: false, canCreateRevision: false };
+    return {
+      canCreateDocument: false,
+      canCreateRevision: false,
+      canIssueForWork: false,
+    };
   }
 
   const { data: roles, error: rolesError } = await supabase
@@ -191,7 +195,11 @@ export async function getDocumentCapabilities(projectId: string) {
   if (rolesError) queryError("Не удалось проверить права на документы.");
   const roleIds = roles.map(({ id }) => id);
   if (roleIds.length === 0) {
-    return { canCreateDocument: false, canCreateRevision: false };
+    return {
+      canCreateDocument: false,
+      canCreateRevision: false,
+      canIssueForWork: false,
+    };
   }
 
   const { data: grants, error: grantsError } = await supabase
@@ -205,14 +213,22 @@ export async function getDocumentCapabilities(projectId: string) {
     ...new Set(grants.map(({ permission_id }) => permission_id)),
   ];
   if (permissionIds.length === 0) {
-    return { canCreateDocument: false, canCreateRevision: false };
+    return {
+      canCreateDocument: false,
+      canCreateRevision: false,
+      canIssueForWork: false,
+    };
   }
 
   const { data: permissions, error: permissionsError } = await supabase
     .from("permissions")
     .select("key")
     .in("id", permissionIds)
-    .in("key", ["documents.create", "documents.revision.create"])
+    .in("key", [
+      "documents.create",
+      "documents.issue_for_work",
+      "documents.revision.create",
+    ])
     .eq("status", "active");
 
   if (permissionsError) queryError("Не удалось проверить права на документы.");
@@ -221,5 +237,6 @@ export async function getDocumentCapabilities(projectId: string) {
   return {
     canCreateDocument: keys.has("documents.create"),
     canCreateRevision: keys.has("documents.revision.create"),
+    canIssueForWork: keys.has("documents.issue_for_work"),
   };
 }

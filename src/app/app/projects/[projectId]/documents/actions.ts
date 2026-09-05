@@ -14,6 +14,7 @@ import {
   createTechnicalDocumentCommand,
   DocumentCommandError,
   type DocumentCommandErrorCode,
+  issueDocumentRevisionForWorkCommand,
 } from "@/modules/documents/server/commands";
 import { requireUser } from "@/server/auth/require-user";
 
@@ -24,6 +25,7 @@ export type DocumentActionState = {
     title?: string[];
   };
   message?: string;
+  success?: boolean;
 };
 
 const errorMessages: Record<DocumentCommandErrorCode, string> = {
@@ -32,6 +34,8 @@ const errorMessages: Record<DocumentCommandErrorCode, string> = {
   FORBIDDEN: "Недостаточно прав для выполнения операции.",
   PROJECT_NOT_FOUND: "Проект не найден или недоступен.",
   REVISION_DUPLICATE: "Ревизия с таким кодом уже существует.",
+  REVISION_NOT_APPROVED:
+    "Выдать в производство можно только утверждённую ревизию.",
   UNEXPECTED: "Не удалось сохранить данные. Обновите страницу и повторите.",
 };
 
@@ -115,4 +119,37 @@ export async function createDocumentRevision(
   revalidatePath(documentPath);
   revalidatePath(`/app/projects/${parsedContext.data.projectId}/documents`);
   redirect(documentPath);
+}
+
+export async function issueDocumentRevisionForWork(
+  projectId: string,
+  documentId: string,
+  revisionId: string,
+  _state: DocumentActionState,
+  _formData: FormData,
+): Promise<DocumentActionState> {
+  void _state;
+  void _formData;
+  const parsed = z
+    .object({
+      documentId: postgresUuidSchema,
+      projectId: postgresUuidSchema,
+      revisionId: postgresUuidSchema,
+    })
+    .safeParse({ documentId, projectId, revisionId });
+
+  if (!parsed.success) return { message: "Документ или ревизия не найдены." };
+
+  await requireUser();
+  try {
+    await issueDocumentRevisionForWorkCommand(parsed.data);
+  } catch (error) {
+    return actionError(error);
+  }
+
+  const documentPath = `/app/projects/${parsed.data.projectId}/documents/${parsed.data.documentId}`;
+  revalidatePath(documentPath);
+  revalidatePath(`/app/projects/${parsed.data.projectId}/documents`);
+  revalidatePath(`/app/projects/${parsed.data.projectId}`);
+  return { message: "Ревизия выдана в производство.", success: true };
 }

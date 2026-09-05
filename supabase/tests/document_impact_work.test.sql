@@ -41,8 +41,8 @@ select is(
     join public.permissions on permissions.id = role_permissions.permission_id
     where permissions.key = 'documents.issue_for_work'
   ),
-  0::bigint,
-  'documents.issue_for_work remains ungranted'
+  1::bigint,
+  'documents.issue_for_work has the approved TASK-017 PTO grant'
 );
 select is(
   (select pg_get_constraintdef(oid) from pg_catalog.pg_constraint where conrelid = 'public.document_work_links'::regclass and conname = 'document_work_links_technical_document_fkey'),

@@ -6,6 +6,7 @@ export type DocumentCommandErrorCode =
   | "DOCUMENT_DUPLICATE"
   | "DOCUMENT_NOT_FOUND"
   | "FORBIDDEN"
+  | "REVISION_NOT_APPROVED"
   | "PROJECT_NOT_FOUND"
   | "REVISION_DUPLICATE"
   | "UNEXPECTED";
@@ -88,4 +89,31 @@ export async function createDocumentRevisionCommand(input: {
 
   if (error) mapInsertError(error.code, "REVISION_DUPLICATE");
   return { id };
+}
+
+export async function issueDocumentRevisionForWorkCommand(input: {
+  documentId: string;
+  projectId: string;
+  revisionId: string;
+}) {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.rpc(
+    "issue_document_revision_for_work",
+    {
+      p_document_revision_id: input.revisionId,
+      p_project_id: input.projectId,
+      p_technical_document_id: input.documentId,
+    },
+  );
+
+  if (error?.code === "42501") throw new DocumentCommandError("FORBIDDEN");
+  if (error?.code === "P0002") {
+    throw new DocumentCommandError("DOCUMENT_NOT_FOUND");
+  }
+  if (error?.code === "22023") {
+    throw new DocumentCommandError("REVISION_NOT_APPROVED");
+  }
+  if (error || !data) throw new DocumentCommandError("UNEXPECTED");
+
+  return { id: data };
 }

@@ -73,8 +73,8 @@ select table_privs_are(
   'public',
   'document_issues_for_work',
   'authenticated',
-  array['SELECT', 'INSERT', 'UPDATE'],
-  'IssueForWork SQL privileges match issue and withdrawal policies without delete'
+  array['SELECT'],
+  'IssueForWork writes are restricted to the controlled command'
 );
 
 select is(
@@ -85,8 +85,8 @@ select is(
       on permissions.id = role_permissions.permission_id
     where permissions.key = 'documents.issue_for_work'
   ),
-  0::bigint,
-  'documents.issue_for_work remains intentionally ungranted'
+  1::bigint,
+  'documents.issue_for_work has one approved role grant'
 );
 
 insert into auth.users (id, email)
@@ -466,16 +466,18 @@ select throws_ok(
   $$insert into public.document_issues_for_work (project_id, technical_document_id, document_revision_id, issued_by) values ('18000000-0000-0000-0000-000000000001', '58000000-0000-0000-0000-000000000001', '68000000-0000-0000-0000-000000000002', 'a8000000-0000-0000-0000-000000000001')$$,
   '42501',
   null,
-  'PTO cannot issue for work because the permission key has no approved grant'
+  'PTO cannot bypass the controlled issue command with direct INSERT'
 );
-select lives_ok(
+select throws_ok(
   $$update public.document_issues_for_work set withdrawal_reason = 'Forged withdrawal' where technical_document_id = '58000000-0000-0000-0000-000000000001' and withdrawn_at is null$$,
-  'ungranted issue withdrawal is safely filtered by RLS'
+  '42501',
+  null,
+  'authenticated users cannot update IssueForWork history directly'
 );
 select is(
   (select count(*) from public.document_issues_for_work where technical_document_id = '58000000-0000-0000-0000-000000000001' and withdrawn_at is null),
   1::bigint,
-  'PTO cannot withdraw an issue because documents.issue_for_work is ungranted'
+  'PTO cannot withdraw an issue through direct UPDATE'
 );
 select throws_ok($$delete from public.technical_documents where id = '58000000-0000-0000-0000-000000000010'$$, '42501', null, 'authenticated TechnicalDocument hard delete is denied');
 select throws_ok($$delete from public.document_revisions where id = '68000000-0000-0000-0000-000000000010'$$, '42501', null, 'authenticated DocumentRevision hard delete is denied');

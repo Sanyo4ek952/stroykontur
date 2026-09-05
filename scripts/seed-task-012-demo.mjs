@@ -30,6 +30,11 @@ const ids = {
   workProgress: "73120000-0000-0000-0000-000000000001",
   documentWorkLink: "80120000-0000-0000-0000-000000000001",
   documentIssueForWork: "90120000-0000-0000-0000-000000000001",
+  issueTechnicalDocument: "50120000-0000-0000-0000-000000000017",
+  issueDocumentRevision: "60120000-0000-0000-0000-000000000017",
+  issueWork: "70120000-0000-0000-0000-000000000017",
+  issueWorkAssignment: "71120000-0000-0000-0000-000000000017",
+  issueDocumentWorkLink: "80120000-0000-0000-0000-000000000017",
 };
 
 function readLocalSupabaseEnvironment() {
@@ -301,6 +306,43 @@ async function main() {
       technical_document_id: ids.technicalDocument,
       document_revision_id: ids.documentRevision,
       issued_by: userId,
+    });
+    await insertOne(adminClient, "technical_documents", {
+      id: ids.issueTechnicalDocument,
+      project_id: ids.project,
+      code: "АР-017",
+      title: "Документ для контролируемой выдачи",
+      created_by: userId,
+    });
+    await insertOne(adminClient, "document_revisions", {
+      id: ids.issueDocumentRevision,
+      project_id: ids.project,
+      technical_document_id: ids.issueTechnicalDocument,
+      revision_code: "R1",
+      status: "approved",
+      created_by: userId,
+    });
+    await insertOne(adminClient, "works", {
+      id: ids.issueWork,
+      project_id: ids.project,
+      code: "WORK-017-E2E",
+      title: "Работа для проверки контролируемой выдачи",
+      status: "PLANNED",
+      created_by: workCreatorUserId,
+    });
+    await insertOne(adminClient, "work_assignments", {
+      id: ids.issueWorkAssignment,
+      project_id: ids.project,
+      work_id: ids.issueWork,
+      project_member_id: ids.workCreatorProjectMember,
+      assigned_by: workCreatorUserId,
+    });
+    await insertOne(adminClient, "document_work_links", {
+      id: ids.issueDocumentWorkLink,
+      project_id: ids.project,
+      technical_document_id: ids.issueTechnicalDocument,
+      work_id: ids.issueWork,
+      created_by: userId,
     });
   }
 
