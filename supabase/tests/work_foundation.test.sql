@@ -59,8 +59,8 @@ select table_privs_are(
   'public',
   'work_assignments',
   'authenticated',
-  array['SELECT', 'INSERT', 'UPDATE'],
-  'WorkAssignment privileges match assignment and historical ending policies'
+  array['SELECT'],
+  'WorkAssignment mutation is available only through named commands'
 );
 select table_privs_are(
   'public',
@@ -631,33 +631,15 @@ select throws_ok(
   'authenticated WorkDependency hard delete is denied'
 );
 
-select lives_ok(
+select throws_ok(
   $$insert into public.work_assignments (id, project_id, work_id, project_member_id, assigned_by, assigned_at) values ('79000000-0000-0000-0000-000000000010', '19000000-0000-0000-0000-000000000001', '59000000-0000-0000-0000-000000000002', '39000000-0000-0000-0000-000000000010', 'b9000000-0000-0000-0000-000000000002', '2000-01-01 00:00:00+00')$$,
-  'project-scoped work.assign permits a same-Project assignment'
+  '42501', null,
+  'direct WorkAssignment insert is denied even with work.assign'
 );
-select is(
-  (select assigned_by from public.work_assignments where id = '79000000-0000-0000-0000-000000000010'),
-  'a9000000-0000-0000-0000-000000000001'::uuid,
-  'WorkAssignment assigner impersonation is overwritten with auth.uid()'
-);
-select isnt(
-  (select assigned_at from public.work_assignments where id = '79000000-0000-0000-0000-000000000010'),
-  '2000-01-01 00:00:00+00'::timestamptz,
-  'WorkAssignment assignment timestamp is database-authoritative'
-);
-select lives_ok(
-  $$update public.work_assignments set end_reason = 'responsibility changed', ended_at = '2000-01-01 00:00:00+00', ended_by = 'b9000000-0000-0000-0000-000000000002' where id = '79000000-0000-0000-0000-000000000010'$$,
-  'project-scoped work.assign can end an active assignment historically'
-);
-select is(
-  (select ended_by from public.work_assignments where id = '79000000-0000-0000-0000-000000000010'),
-  'a9000000-0000-0000-0000-000000000001'::uuid,
-  'WorkAssignment end actor is database-trusted'
-);
-select isnt(
-  (select ended_at from public.work_assignments where id = '79000000-0000-0000-0000-000000000010'),
-  '2000-01-01 00:00:00+00'::timestamptz,
-  'WorkAssignment end timestamp is database-authoritative'
+select throws_ok(
+  $$update public.work_assignments set end_reason = 'forged' where id = '79000000-0000-0000-0000-000000000001'$$,
+  '42501', null,
+  'direct WorkAssignment update is denied even with work.assign'
 );
 select throws_ok(
   $$insert into public.work_assignments (project_id, work_id, project_member_id, assigned_by) values ('19000000-0000-0000-0000-000000000002', '59000000-0000-0000-0000-000000000006', '39000000-0000-0000-0000-000000000002', 'a9000000-0000-0000-0000-000000000001')$$,

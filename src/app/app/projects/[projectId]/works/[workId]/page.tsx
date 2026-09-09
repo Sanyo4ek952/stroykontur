@@ -4,11 +4,13 @@ import Link from "next/link";
 import { postgresUuidSchema } from "@/modules/works/model/schemas";
 import { getWorkDocumentLinkData } from "@/modules/document-work-links/server/queries";
 import {
+  getWorkAssignmentCandidates,
   getWorkCapabilities,
   getWorkDetails,
 } from "@/modules/works/server/queries";
 
 import { DocumentWorkLinkManager } from "../../document-work-link-manager";
+import { WorkAssignmentControls } from "./assignment-controls";
 import { WorkLifecycleControls } from "./lifecycle-controls";
 import { getWorkLifecycleActions } from "@/modules/works/model/lifecycle";
 import {
@@ -78,6 +80,9 @@ export default async function WorkDetailsPage({
   ]);
   if (!work) return <EmptyState title="Работа не найдена." />;
 
+  const candidates = capabilities.canAssignWork
+    ? await getWorkAssignmentCandidates(projectId)
+    : [];
   const availableActions = getWorkLifecycleActions(work.status, capabilities);
 
   return (
@@ -145,10 +150,14 @@ export default async function WorkDetailsPage({
 
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold text-slate-950">Ответственный</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Назначения доступны только для просмотра: текущий RLS-контракт не даёт
-          атомарной смены ответственного.
-        </p>
+        {capabilities.canAssignWork ? (
+          <WorkAssignmentControls
+            projectId={projectId}
+            workId={work.id}
+            currentAssignment={work.currentAssignment}
+            candidates={candidates}
+          />
+        ) : null}
         <p className="mt-4 text-base font-semibold text-slate-950">
           {work.currentAssignment?.responsibleLabel ?? "Не назначен"}
         </p>
@@ -175,6 +184,11 @@ export default async function WorkDetailsPage({
                       : "Текущее назначение"}
                   </span>
                 </div>
+                {assignment.assignment_reason ? (
+                  <p className="mt-2 text-sm text-slate-600">
+                    Основание: {assignment.assignment_reason}
+                  </p>
+                ) : null}
                 {assignment.end_reason ? (
                   <p className="mt-2 text-sm text-slate-600">
                     Причина: {assignment.end_reason}

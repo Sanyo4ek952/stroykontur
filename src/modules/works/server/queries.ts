@@ -125,7 +125,7 @@ export async function getWorkDetails(projectId: string, workId: string) {
       supabase
         .from("work_assignments")
         .select(
-          "id, project_member_id, assigned_by, assigned_at, ended_at, end_reason",
+          "id, project_member_id, assigned_by, assigned_at, ended_at, end_reason, assignment_reason",
         )
         .eq("project_id", projectId)
         .eq("work_id", workId)
@@ -216,6 +216,7 @@ export async function getWorkCapabilities(projectId: string) {
     ...new Set(assignments.map(({ role_id }) => role_id)),
   ];
   const emptyCapabilities = {
+    canAssignWork: false,
     canAcceptWork: false,
     canBlockWork: false,
     canCloseWork: false,
@@ -272,6 +273,7 @@ export async function getWorkCapabilities(projectId: string) {
     .select("key")
     .in("id", permissionIds)
     .in("key", [
+      "work.assign",
       "quality.work.accept",
       "work.block",
       "work.close",
@@ -286,6 +288,7 @@ export async function getWorkCapabilities(projectId: string) {
   if (permissionsError) queryError("Не удалось проверить права на работы.");
   const keys = new Set(permissions.map(({ key }) => key));
   return {
+    canAssignWork: keys.has("work.assign"),
     canAcceptWork: keys.has("quality.work.accept"),
     canBlockWork: keys.has("work.block"),
     canCloseWork: keys.has("work.close"),
@@ -295,4 +298,20 @@ export async function getWorkCapabilities(projectId: string) {
     canRequireWorkRework: keys.has("work.rework"),
     canStartWork: keys.has("work.start"),
   };
+}
+
+export async function getWorkAssignmentCandidates(projectId: string) {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from("work_assignment_candidates")
+    .select("id")
+    .eq("project_id", projectId)
+    .order("id");
+  if (error) queryError("Не удалось загрузить участников для назначения.");
+  return data
+    .filter((member): member is { id: string } => member.id !== null)
+    .map((member) => ({
+      id: member.id,
+      label: `Участник проекта · ${member.id.slice(0, 8)}`,
+    }));
 }
