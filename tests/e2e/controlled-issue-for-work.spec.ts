@@ -1,19 +1,13 @@
-import { expect, test } from "@playwright/test";
-
-const issuer = {
-  email: "demo@construction.test",
-  password: "Demo-Task012-2026!",
-};
-const recipient = {
-  email: "work.manager@construction.test",
-  password: "Work-Task015-2026!",
-};
-const projectId = "10120000-0000-0000-0000-000000000001";
-const documentId = "50120000-0000-0000-0000-000000000017";
+import { expect, test } from "./fixtures";
 
 test("approved revision issues for work and propagates to the linked Work", async ({
   page,
+  scenario,
 }) => {
+  const projectId = scenario.ids.project;
+  const issuer = scenario.demoUser;
+  const recipient = scenario.manager;
+  const documentId = scenario.ids.issueTechnicalDocument;
   await page.goto("/login");
   await page.getByLabel("Электронная почта").fill(issuer.email);
   await page.getByLabel("Пароль").fill(issuer.password);

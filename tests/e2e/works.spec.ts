@@ -1,20 +1,8 @@
-import { expect, test } from "@playwright/test";
-
-const demoUser = {
-  email: "demo@construction.test",
-  password: "Demo-Task012-2026!",
-};
-const workCreator = {
-  email: "work.manager@construction.test",
-  password: "Work-Task015-2026!",
-};
-const projectId = "10120000-0000-0000-0000-000000000001";
-const seededWorkId = "70120000-0000-0000-0000-000000000001";
-const worksPath = `/app/projects/${projectId}/works`;
+import { expect, test, type Credentials } from "./fixtures";
 
 async function login(
   page: import("@playwright/test").Page,
-  credentials: typeof demoUser,
+  credentials: Credentials,
 ) {
   await page.goto("/login");
   await page.getByLabel("Электронная почта").fill(credentials.email);
@@ -25,7 +13,10 @@ async function login(
 
 test("shows searchable read-only Work details for the demo PTO user", async ({
   page,
+  scenario,
 }) => {
+  const demoUser = scenario.demoUser;
+  const worksPath = `/app/projects/${scenario.ids.project}/works`;
   await login(page, demoUser);
   await page.goto(`${worksPath}?search=Армирование&status=READY`);
 
@@ -73,7 +64,10 @@ test("shows searchable read-only Work details for the demo PTO user", async ({
 
 test("creates a PLANNED Work through an existing project-scoped grant", async ({
   page,
+  scenario,
 }) => {
+  const workCreator = scenario.manager;
+  const worksPath = `/app/projects/${scenario.ids.project}/works`;
   await login(page, workCreator);
   await page.goto(`${worksPath}/new`);
 
@@ -104,7 +98,13 @@ test("creates a PLANNED Work through an existing project-scoped grant", async ({
   ).toBeVisible();
 });
 
-test("does not expose a random or cross-project Work URL", async ({ page }) => {
+test("does not expose a random or cross-project Work URL", async ({
+  page,
+  scenario,
+}) => {
+  const demoUser = scenario.demoUser;
+  const seededWorkId = scenario.ids.work;
+  const worksPath = `/app/projects/${scenario.ids.project}/works`;
   await login(page, demoUser);
   await page.goto(`${worksPath}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa`);
   await expect(

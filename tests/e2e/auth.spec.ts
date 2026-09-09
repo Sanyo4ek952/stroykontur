@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
 const testUser = {
-  email: "task-003-auth-e2e@example.test",
+  email: `task-003-auth-${crypto.randomUUID()}@example.test`,
   password: "local-task-003-password",
 };
 

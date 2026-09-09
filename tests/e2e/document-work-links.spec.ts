@@ -1,20 +1,8 @@
-import { expect, test } from "@playwright/test";
-
-const pto = {
-  email: "demo@construction.test",
-  password: "Demo-Task012-2026!",
-};
-const workManager = {
-  email: "work.manager@construction.test",
-  password: "Work-Task015-2026!",
-};
-const projectId = "10120000-0000-0000-0000-000000000001";
-const documentId = "50120000-0000-0000-0000-000000000001";
-const workId = "70120000-0000-0000-0000-000000000003";
+import { expect, test, type Credentials } from "./fixtures";
 
 async function login(
   page: import("@playwright/test").Page,
-  credentials: typeof pto,
+  credentials: Credentials,
 ) {
   await page.goto("/login");
   await page.getByLabel("Электронная почта").fill(credentials.email);
@@ -25,7 +13,13 @@ async function login(
 
 test("PTO manages a Document ↔ Work link and preserves propagation history", async ({
   page,
+  scenario,
 }) => {
+  const projectId = scenario.ids.project;
+  const pto = scenario.demoUser;
+  const workManager = scenario.manager;
+  const documentId = scenario.ids.technicalDocument;
+  const workId = scenario.ids.blockedWork;
   await login(page, pto);
   await page.goto(`/app/projects/${projectId}/documents/${documentId}`);
 
@@ -83,7 +77,11 @@ test("PTO manages a Document ↔ Work link and preserves propagation history", a
 
 test("a user without the relationship permission cannot manage Document ↔ Work links", async ({
   page,
+  scenario,
 }) => {
+  const projectId = scenario.ids.project;
+  const workManager = scenario.manager;
+  const documentId = scenario.ids.technicalDocument;
   await login(page, workManager);
   await page.goto(`/app/projects/${projectId}/documents/${documentId}`);
   await expect(

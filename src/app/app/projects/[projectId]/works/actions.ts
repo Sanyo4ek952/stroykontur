@@ -5,7 +5,15 @@ import { redirect } from "next/navigation";
 
 import { postgresUuidSchema, workSchema } from "@/modules/works/model/schemas";
 import {
+  acceptWorkCommand,
+  blockWorkCommand,
+  closeWorkCommand,
   createWorkCommand,
+  markWorkReadyCommand,
+  markWorkReadyForInspectionCommand,
+  requireWorkReworkCommand,
+  resumeBlockedWorkCommand,
+  startWorkCommand,
   WorkCommandError,
   type WorkCommandErrorCode,
 } from "@/modules/works/server/commands";
@@ -28,8 +36,10 @@ const errorMessages: Record<WorkCommandErrorCode, string> = {
   INVALID_DATES: "Дата окончания не может быть раньше даты начала.",
   INVALID_QUANTITY_UNIT: "Проверьте плановый объём и единицу измерения.",
   PROJECT_NOT_FOUND: "Проект не найден или недоступен.",
+  TRANSITION_UNAVAILABLE: "Переход из текущего состояния недоступен.",
   UNEXPECTED: "Не удалось сохранить работу. Обновите страницу и повторите.",
   WORK_DUPLICATE: "Работа с таким кодом уже существует.",
+  WORK_NOT_FOUND: "Работа не найдена.",
 };
 
 function actionError(error: unknown): WorkActionState {
@@ -78,4 +88,67 @@ export async function createWork(
   revalidatePath(worksPath);
   revalidatePath(`/app/projects/${parsedProjectId.data}`);
   redirect(`${worksPath}/${workId}`);
+}
+
+export type WorkLifecycleActionState = { message?: string };
+
+async function runLifecycleAction(
+  projectId: string,
+  workId: string,
+  command: (projectId: string, workId: string) => Promise<void>,
+): Promise<WorkLifecycleActionState> {
+  const parsedProjectId = postgresUuidSchema.safeParse(projectId);
+  const parsedWorkId = postgresUuidSchema.safeParse(workId);
+  if (!parsedProjectId.success || !parsedWorkId.success) {
+    return { message: "Работа не найдена." };
+  }
+  await requireUser();
+  try {
+    await command(parsedProjectId.data, parsedWorkId.data);
+  } catch (error) {
+    return actionError(error);
+  }
+  const worksPath = `/app/projects/${parsedProjectId.data}/works`;
+  revalidatePath(worksPath);
+  revalidatePath(`${worksPath}/${parsedWorkId.data}`);
+  return {};
+}
+
+export async function markWorkReady(projectId: string, workId: string) {
+  return runLifecycleAction(projectId, workId, markWorkReadyCommand);
+}
+
+export async function startWork(projectId: string, workId: string) {
+  return runLifecycleAction(projectId, workId, startWorkCommand);
+}
+
+export async function blockWork(projectId: string, workId: string) {
+  return runLifecycleAction(projectId, workId, blockWorkCommand);
+}
+
+export async function resumeBlockedWork(projectId: string, workId: string) {
+  return runLifecycleAction(projectId, workId, resumeBlockedWorkCommand);
+}
+
+export async function markWorkReadyForInspection(
+  projectId: string,
+  workId: string,
+) {
+  return runLifecycleAction(
+    projectId,
+    workId,
+    markWorkReadyForInspectionCommand,
+  );
+}
+
+export async function requireWorkRework(projectId: string, workId: string) {
+  return runLifecycleAction(projectId, workId, requireWorkReworkCommand);
+}
+
+export async function acceptWork(projectId: string, workId: string) {
+  return runLifecycleAction(projectId, workId, acceptWorkCommand);
+}
+
+export async function closeWork(projectId: string, workId: string) {
+  return runLifecycleAction(projectId, workId, closeWorkCommand);
 }

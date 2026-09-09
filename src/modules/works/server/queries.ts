@@ -215,7 +215,35 @@ export async function getWorkCapabilities(projectId: string) {
   const assignedRoleIds = [
     ...new Set(assignments.map(({ role_id }) => role_id)),
   ];
-  if (assignedRoleIds.length === 0) return { canCreateWork: false };
+  const emptyCapabilities = {
+    canAcceptWork: false,
+    canBlockWork: false,
+    canCloseWork: false,
+    canCreateWork: false,
+    canMarkWorkReady: false,
+    canMarkWorkReadyForInspection: false,
+    canRequireWorkRework: false,
+    canStartWork: false,
+  };
+  if (assignedRoleIds.length === 0) return emptyCapabilities;
+
+  const { data: member, error: memberError } = await supabase
+    .from("project_members")
+    .select("project_organization_id")
+    .eq("project_id", projectId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (memberError) queryError("Не удалось проверить права на работы.");
+  if (!member) return emptyCapabilities;
+  const { data: organization, error: organizationError } = await supabase
+    .from("project_organizations")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("id", member.project_organization_id)
+    .eq("status", "active")
+    .maybeSingle();
+  if (organizationError) queryError("Не удалось проверить права на работы.");
+  if (!organization) return emptyCapabilities;
 
   const { data: roles, error: rolesError } = await supabase
     .from("roles")
@@ -225,7 +253,7 @@ export async function getWorkCapabilities(projectId: string) {
 
   if (rolesError) queryError("Не удалось проверить права на работы.");
   const roleIds = roles.map(({ id }) => id);
-  if (roleIds.length === 0) return { canCreateWork: false };
+  if (roleIds.length === 0) return emptyCapabilities;
 
   const { data: grants, error: grantsError } = await supabase
     .from("role_permissions")
@@ -237,17 +265,34 @@ export async function getWorkCapabilities(projectId: string) {
   const permissionIds = [
     ...new Set(grants.map(({ permission_id }) => permission_id)),
   ];
-  if (permissionIds.length === 0) return { canCreateWork: false };
+  if (permissionIds.length === 0) return emptyCapabilities;
 
   const { data: permissions, error: permissionsError } = await supabase
     .from("permissions")
     .select("key")
     .in("id", permissionIds)
-    .eq("key", "work.create")
+    .in("key", [
+      "quality.work.accept",
+      "work.block",
+      "work.close",
+      "work.create",
+      "work.ready",
+      "work.ready_for_inspection",
+      "work.rework",
+      "work.start",
+    ])
     .eq("status", "active");
 
   if (permissionsError) queryError("Не удалось проверить права на работы.");
+  const keys = new Set(permissions.map(({ key }) => key));
   return {
-    canCreateWork: permissions.some(({ key }) => key === "work.create"),
+    canAcceptWork: keys.has("quality.work.accept"),
+    canBlockWork: keys.has("work.block"),
+    canCloseWork: keys.has("work.close"),
+    canCreateWork: keys.has("work.create"),
+    canMarkWorkReady: keys.has("work.ready"),
+    canMarkWorkReadyForInspection: keys.has("work.ready_for_inspection"),
+    canRequireWorkRework: keys.has("work.rework"),
+    canStartWork: keys.has("work.start"),
   };
 }

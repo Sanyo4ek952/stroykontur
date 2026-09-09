@@ -200,7 +200,10 @@ select is(
   'every generated Task creates exactly one task.created Event'
 );
 select is(
-  (select count(*) from public.events where actor_user_id is not null),
+  (select count(*) from public.events
+   where event_type = 'task.created'
+     and subject_type = 'task'
+     and actor_user_id is not null),
   0::bigint,
   'system-generated task.created Events do not attribute the assignee as actor'
 );

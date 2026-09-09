@@ -1,13 +1,9 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Credentials } from "./fixtures";
 
-const demoUser = {
-  email: "demo@construction.test",
-  password: "Demo-Task012-2026!",
-};
-const projectId = "10120000-0000-0000-0000-000000000001";
-const documentsPath = `/app/projects/${projectId}/documents`;
-
-async function login(page: import("@playwright/test").Page) {
+async function login(
+  page: import("@playwright/test").Page,
+  demoUser: Credentials,
+) {
   await page.goto("/login");
   await page.getByLabel("Электронная почта").fill(demoUser.email);
   await page.getByLabel("Пароль").fill(demoUser.password);
@@ -17,8 +13,11 @@ async function login(page: import("@playwright/test").Page) {
 
 test("creates a document and DRAFT revision with safe duplicate errors", async ({
   page,
+  scenario,
 }) => {
-  await login(page);
+  const demoUser = scenario.demoUser;
+  const documentsPath = `/app/projects/${scenario.ids.project}/documents`;
+  await login(page, demoUser);
   await page.goto(documentsPath);
 
   const seededDocument = page
@@ -85,8 +84,11 @@ test("creates a document and DRAFT revision with safe duplicate errors", async (
 
 test("does not expose a random or cross-project document URL", async ({
   page,
+  scenario,
 }) => {
-  await login(page);
+  const demoUser = scenario.demoUser;
+  const documentsPath = `/app/projects/${scenario.ids.project}/documents`;
+  await login(page, demoUser);
   await page.goto(`${documentsPath}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa`);
   await expect(
     page.getByRole("heading", { name: "Документ не найден." }),

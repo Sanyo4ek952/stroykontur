@@ -1,14 +1,11 @@
-import { expect, test } from "@playwright/test";
-
-const demoUser = {
-  email: "demo@construction.test",
-  password: "Demo-Task012-2026!",
-};
-const projectId = "10120000-0000-0000-0000-000000000001";
+import { expect, test } from "./fixtures";
 
 test("navigates the application shell and persists READ and ACK", async ({
   page,
+  scenario,
 }) => {
+  const projectId = scenario.ids.project;
+  const demoUser = scenario.demoUser;
   await page.goto("/login");
   await page.getByLabel("Электронная почта").fill(demoUser.email);
   await page.getByLabel("Пароль").fill(demoUser.password);
@@ -82,7 +79,8 @@ test("navigates the application shell and persists READ and ACK", async ({
   ).toBeVisible();
 });
 
-test("does not expose an unrelated project URL", async ({ page }) => {
+test("does not expose an unrelated project URL", async ({ page, scenario }) => {
+  const demoUser = scenario.demoUser;
   await page.goto("/login");
   await page.getByLabel("Электронная почта").fill(demoUser.email);
   await page.getByLabel("Пароль").fill(demoUser.password);
@@ -100,7 +98,9 @@ test("does not expose an unrelated project URL", async ({ page }) => {
 
 test("keeps project navigation usable on a phone viewport", async ({
   page,
+  scenario,
 }) => {
+  const demoUser = scenario.demoUser;
   await page.setViewportSize({ height: 844, width: 390 });
   await page.goto("/login");
   await page.getByLabel("Электронная почта").fill(demoUser.email);

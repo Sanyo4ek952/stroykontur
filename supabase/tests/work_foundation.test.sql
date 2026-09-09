@@ -45,8 +45,8 @@ select table_privs_are(
   'public',
   'works',
   'authenticated',
-  array['SELECT', 'INSERT', 'UPDATE'],
-  'Work privileges match read, create, and safe metadata edit policies'
+  array['SELECT', 'INSERT'],
+  'Work table privileges exclude generic UPDATE; metadata uses column grants'
 );
 select table_privs_are(
   'public',
@@ -596,13 +596,13 @@ select lives_ok(
 );
 select throws_ok(
   $$update public.works set status = 'IN_PROGRESS' where id = '59000000-0000-0000-0000-000000000010'$$,
-  '23514',
+  '42501',
   null,
   'generic work.edit cannot mutate Work lifecycle'
 );
 select throws_ok(
   $$update public.works set code = 'FORGED-CODE' where id = '59000000-0000-0000-0000-000000000010'$$,
-  '23514',
+  '42501',
   null,
   'generic work.edit cannot mutate Work identity'
 );

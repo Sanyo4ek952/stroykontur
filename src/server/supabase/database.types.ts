@@ -152,6 +152,7 @@ export type Database = {
           actor_user_id: string | null;
           created_at: string;
           id: string;
+          lifecycle_transition_id: string | null;
           occurred_at: string;
           project_id: string;
           subject_id: string;
@@ -163,6 +164,7 @@ export type Database = {
           actor_user_id?: string | null;
           created_at?: string;
           id?: string;
+          lifecycle_transition_id?: string | null;
           occurred_at?: string;
           project_id: string;
           subject_id: string;
@@ -174,6 +176,7 @@ export type Database = {
           actor_user_id?: string | null;
           created_at?: string;
           id?: string;
+          lifecycle_transition_id?: string | null;
           occurred_at?: string;
           project_id?: string;
           subject_id?: string;
@@ -444,31 +447,40 @@ export type Database = {
           actor_user_id: string | null;
           created_at: string;
           event_type: string;
+          from_status: string | null;
           id: string;
+          lifecycle_transition_id: string | null;
           occurred_at: string;
           project_id: string;
           subject_id: string;
           subject_type: string;
+          to_status: string | null;
         };
         Insert: {
           actor_user_id?: string | null;
           created_at?: string;
           event_type: string;
+          from_status?: string | null;
           id?: string;
+          lifecycle_transition_id?: string | null;
           occurred_at?: string;
           project_id: string;
           subject_id: string;
           subject_type: string;
+          to_status?: string | null;
         };
         Update: {
           actor_user_id?: string | null;
           created_at?: string;
           event_type?: string;
+          from_status?: string | null;
           id?: string;
+          lifecycle_transition_id?: string | null;
           occurred_at?: string;
           project_id?: string;
           subject_id?: string;
           subject_type?: string;
+          to_status?: string | null;
         };
         Relationships: [
           {
@@ -1187,8 +1199,20 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      accept_work: {
+        Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
       acknowledge_own_document_impact: {
         Args: { notification_id: string };
+        Returns: string;
+      };
+      block_work: {
+        Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
+      close_work: {
+        Args: { p_project_id: string; p_work_id: string };
         Returns: string;
       };
       get_own_vertical_slice: {
@@ -1234,6 +1258,26 @@ export type Database = {
       };
       mark_own_notification_read: {
         Args: { notification_id: string };
+        Returns: string;
+      };
+      mark_work_ready: {
+        Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
+      mark_work_ready_for_inspection: {
+        Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
+      require_work_rework: {
+        Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
+      resume_blocked_work: {
+        Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
+      start_work: {
+        Args: { p_project_id: string; p_work_id: string };
         Returns: string;
       };
     };

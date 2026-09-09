@@ -3,9 +3,14 @@ import Link from "next/link";
 
 import { postgresUuidSchema } from "@/modules/works/model/schemas";
 import { getWorkDocumentLinkData } from "@/modules/document-work-links/server/queries";
-import { getWorkDetails } from "@/modules/works/server/queries";
+import {
+  getWorkCapabilities,
+  getWorkDetails,
+} from "@/modules/works/server/queries";
 
 import { DocumentWorkLinkManager } from "../../document-work-link-manager";
+import { WorkLifecycleControls } from "./lifecycle-controls";
+import { getWorkLifecycleActions } from "@/modules/works/model/lifecycle";
 import {
   Detail,
   EmptyState,
@@ -62,15 +67,18 @@ export default async function WorkDetailsPage({
   const parsedWorkId = postgresUuidSchema.safeParse(workId);
   if (!parsedWorkId.success) return <EmptyState title="Работа не найдена." />;
 
-  const [work, linkData] = await Promise.all([
+  const [work, linkData, capabilities] = await Promise.all([
     getWorkDetails(projectId, parsedWorkId.data),
     getWorkDocumentLinkData(
       projectId,
       parsedWorkId.data,
       documentSearch.trim(),
     ),
+    getWorkCapabilities(projectId),
   ]);
   if (!work) return <EmptyState title="Работа не найдена." />;
+
+  const availableActions = getWorkLifecycleActions(work.status, capabilities);
 
   return (
     <>
@@ -106,6 +114,12 @@ export default async function WorkDetailsPage({
           </Detail>
         </dl>
       </section>
+
+      <WorkLifecycleControls
+        availableActions={availableActions}
+        projectId={projectId}
+        workId={work.id}
+      />
 
       <DocumentWorkLinkManager
         canManage={linkData.canManage}

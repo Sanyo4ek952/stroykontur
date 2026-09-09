@@ -7,8 +7,10 @@ export type WorkCommandErrorCode =
   | "INVALID_DATES"
   | "INVALID_QUANTITY_UNIT"
   | "PROJECT_NOT_FOUND"
+  | "TRANSITION_UNAVAILABLE"
   | "UNEXPECTED"
-  | "WORK_DUPLICATE";
+  | "WORK_DUPLICATE"
+  | "WORK_NOT_FOUND";
 
 export class WorkCommandError extends Error {
   constructor(readonly code: WorkCommandErrorCode) {
@@ -44,6 +46,95 @@ function mapInsertError(error: { code?: string; message?: string }): never {
     throw new WorkCommandError("INVALID_QUANTITY_UNIT");
   }
   throw new WorkCommandError("UNEXPECTED");
+}
+
+function mapLifecycleError(error: { code?: string }): never {
+  if (error.code === "42501") throw new WorkCommandError("FORBIDDEN");
+  if (error.code === "P0002") throw new WorkCommandError("WORK_NOT_FOUND");
+  if (error.code === "22023")
+    throw new WorkCommandError("TRANSITION_UNAVAILABLE");
+  throw new WorkCommandError("UNEXPECTED");
+}
+
+export async function markWorkReadyCommand(projectId: string, workId: string) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("mark_work_ready", {
+    p_project_id: projectId,
+    p_work_id: workId,
+  });
+  if (error) mapLifecycleError(error);
+}
+
+export async function startWorkCommand(projectId: string, workId: string) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("start_work", {
+    p_project_id: projectId,
+    p_work_id: workId,
+  });
+  if (error) mapLifecycleError(error);
+}
+
+export async function blockWorkCommand(projectId: string, workId: string) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("block_work", {
+    p_project_id: projectId,
+    p_work_id: workId,
+  });
+  if (error) mapLifecycleError(error);
+}
+
+export async function resumeBlockedWorkCommand(
+  projectId: string,
+  workId: string,
+) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("resume_blocked_work", {
+    p_project_id: projectId,
+    p_work_id: workId,
+  });
+  if (error) mapLifecycleError(error);
+}
+
+export async function markWorkReadyForInspectionCommand(
+  projectId: string,
+  workId: string,
+) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("mark_work_ready_for_inspection", {
+    p_project_id: projectId,
+    p_work_id: workId,
+  });
+  if (error) mapLifecycleError(error);
+}
+
+export async function requireWorkReworkCommand(
+  projectId: string,
+  workId: string,
+) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("require_work_rework", {
+    p_project_id: projectId,
+    p_work_id: workId,
+  });
+  if (error) mapLifecycleError(error);
+}
+
+export async function acceptWorkCommand(projectId: string, workId: string) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("accept_work", {
+    p_project_id: projectId,
+    p_work_id: workId,
+  });
+  if (error) mapLifecycleError(error);
+}
+
+export async function closeWorkCommand(projectId: string, workId: string) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("close_work", {
+    p_project_id: projectId,
+    p_work_id: workId,
+  });
+  if (error) mapLifecycleError(error);
 }
 
 export async function createWorkCommand(input: {

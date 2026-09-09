@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -12,12 +13,20 @@ const workCreatorCredentials = {
   password: "Work-Task015-2026!",
 };
 
+const workQualityCredentials = {
+  email: "work.quality@construction.test",
+  password: "Work-Task018-2026!",
+};
+
 const ids = {
   organization: "00120000-0000-0000-0000-000000000001",
   project: "10120000-0000-0000-0000-000000000001",
   projectOrganization: "20120000-0000-0000-0000-000000000001",
   projectMember: "30120000-0000-0000-0000-000000000001",
   workCreatorProjectMember: "30120000-0000-0000-0000-000000000002",
+  workQualityProjectMember: "30120000-0000-0000-0000-000000000018",
+  lifecycleWork: "70120000-0000-0000-0000-000000000018",
+  reworkWork: "70120000-0000-0000-0000-000000000019",
   technicalDocument: "50120000-0000-0000-0000-000000000001",
   documentRevision: "60120000-0000-0000-0000-000000000001",
   work: "70120000-0000-0000-0000-000000000001",
@@ -36,6 +45,37 @@ const ids = {
   issueWorkAssignment: "71120000-0000-0000-0000-000000000017",
   issueDocumentWorkLink: "80120000-0000-0000-0000-000000000017",
 };
+
+// Each Playwright attempt owns a fresh project, users and all linked records.
+// This option only affects local seed data, never application authorization.
+const e2eNamespace = process.argv[2] === "--e2e" ? process.argv[3] : undefined;
+if (process.argv.length > 2 && !e2eNamespace?.match(/^[0-9a-f-]{36}$/)) {
+  throw new Error("Expected --e2e followed by a UUID namespace.");
+}
+if (e2eNamespace) {
+  for (const key of Object.keys(ids)) {
+    const hex = createHash("sha256")
+      .update(e2eNamespace + ":" + key)
+      .digest("hex");
+    ids[key] = [
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      "4" + hex.slice(13, 16),
+      "8" + hex.slice(17, 20),
+      hex.slice(20, 32),
+    ].join("-");
+  }
+  for (const credentials of [
+    demoCredentials,
+    workCreatorCredentials,
+    workQualityCredentials,
+  ]) {
+    credentials.email = credentials.email.replace(
+      "@",
+      "+" + e2eNamespace + "@",
+    );
+  }
+}
 
 function readLocalSupabaseEnvironment() {
   let output;
@@ -131,6 +171,10 @@ async function main() {
     adminClient,
     workCreatorCredentials,
   );
+  const workQualityUserId = await findOrCreateDemoUser(
+    adminClient,
+    workQualityCredentials,
+  );
 
   const { data: existingProject, error: existingProjectError } =
     await adminClient
@@ -151,7 +195,7 @@ async function main() {
     });
     await insertOne(adminClient, "projects", {
       id: ids.project,
-      code: "DEMO-012",
+      code: e2eNamespace ? "E2E-" + e2eNamespace : "DEMO-012",
       name: "Жилой комплекс Северный квартал",
       status: "active",
     });
@@ -346,6 +390,66 @@ async function main() {
     });
   }
 
+  // Add TASK-018 fixtures to an existing local demo without resetting history.
+  const { data: qualityMember, error: qualityMemberError } = await adminClient
+    .from("project_members")
+    .select("id")
+    .eq("id", ids.workQualityProjectMember)
+    .maybeSingle();
+  if (qualityMemberError)
+    throw new Error("Не удалось проверить участника стройконтроля.");
+  if (!qualityMember) {
+    await insertOne(adminClient, "project_members", {
+      id: ids.workQualityProjectMember,
+      project_id: ids.project,
+      project_organization_id: ids.projectOrganization,
+      user_id: workQualityUserId,
+    });
+  }
+  const { data: qualityRole, error: qualityRoleError } = await adminClient
+    .from("roles")
+    .select("id")
+    .eq("code", "construction_control_engineer")
+    .single();
+  if (qualityRoleError)
+    throw new Error("Не найдена существующая роль стройконтроля.");
+  const { error: qualityAssignmentError } = await adminClient
+    .from("project_member_roles")
+    .upsert(
+      {
+        project_id: ids.project,
+        project_member_id: ids.workQualityProjectMember,
+        role_id: qualityRole.id,
+      },
+      { onConflict: "project_member_id,role_id", ignoreDuplicates: true },
+    );
+  if (qualityAssignmentError)
+    throw new Error("Не удалось назначить локальный стройконтроль.");
+  for (const work of [
+    {
+      id: ids.lifecycleWork,
+      code: "WORK-018",
+      title: "Работа для полного жизненного цикла",
+      status: "PLANNED",
+    },
+    {
+      id: ids.reworkWork,
+      code: "WORK-018-REWORK",
+      title: "Работа для возврата на доработку",
+      status: "READY_FOR_INSPECTION",
+    },
+  ]) {
+    const { error } = await adminClient.from("works").upsert(
+      {
+        ...work,
+        project_id: ids.project,
+        created_by: workCreatorUserId,
+      },
+      { onConflict: "id", ignoreDuplicates: true },
+    );
+    if (error) throw new Error("Не удалось создать lifecycle demo Work.");
+  }
+
   const loginClient = createClient(url, publishableKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -362,6 +466,12 @@ async function main() {
       `Work creator credential verification failed: ${workCreatorLoginError.code}`,
     );
   }
+  await loginClient.auth.signOut({ scope: "local" });
+
+  const { error: qualityLoginError } =
+    await loginClient.auth.signInWithPassword(workQualityCredentials);
+  if (qualityLoginError)
+    throw new Error("Не удалось проверить вход стройконтроля.");
   await loginClient.auth.signOut({ scope: "local" });
 
   const { data: notification, error: notificationError } = await adminClient
@@ -383,11 +493,25 @@ async function main() {
     );
   }
 
+  if (e2eNamespace) {
+    console.log(
+      JSON.stringify({
+        ids,
+        demoUser: demoCredentials,
+        manager: workCreatorCredentials,
+        quality: workQualityCredentials,
+      }),
+    );
+    return;
+  }
+
   console.log("TASK-012 local demo готов.");
   console.log(`Логин: ${demoCredentials.email}`);
   console.log(`Пароль: ${demoCredentials.password}`);
   console.log(`Логин для создания Work: ${workCreatorCredentials.email}`);
   console.log(`Пароль для создания Work: ${workCreatorCredentials.password}`);
+  console.log(`Логин стройконтроля: ${workQualityCredentials.email}`);
+  console.log(`Пароль стройконтроля: ${workQualityCredentials.password}`);
   console.log(
     notification.read_at === null && acknowledgementCount === 0
       ? "Начальное состояние: Notification unread, Acknowledgement absent."

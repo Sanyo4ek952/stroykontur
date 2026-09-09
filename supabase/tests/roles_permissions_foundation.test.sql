@@ -481,12 +481,12 @@ select is(
 
 select is(
   (select count(*) from public.permissions),
-  71::bigint,
+  76::bigint,
   'all canonical permission keys are seeded'
 );
 select is(
   (select count(*) from public.permissions where status = 'active'),
-  71::bigint,
+  76::bigint,
   'all canonical permissions are active'
 );
 select is(
@@ -585,11 +585,16 @@ select is(
     'supply.request.create',
     'supply.request.manage',
     'work.assign',
+    'work.block',
     'work.close',
     'work.create',
     'work.edit',
     'work.progress.confirm',
     'work.progress.report',
+    'work.ready',
+    'work.ready_for_inspection',
+    'work.rework',
+    'work.start',
     'work.view'
   ]::text[],
   'the permission catalog matches roles-permissions.md'
@@ -1066,7 +1071,7 @@ select is(
 );
 select is(
   (select count(*) from public.permissions),
-  71::bigint,
+  76::bigint,
   'authenticated User A can read the Permission catalog'
 );
 select ok(
