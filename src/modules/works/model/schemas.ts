@@ -72,6 +72,13 @@ export const workSchema = z
     unit: value.unit ?? null,
   }));
 
+export const workProgressSchema = z.object({
+  note: z.preprocess(emptyToUndefined, z.string().trim().max(2000).optional()),
+  quantity: z.coerce
+    .number({ error: "Введите выполненный объём числом." })
+    .positive({ error: "Выполненный объём должен быть больше нуля." }),
+  recordedForDate: optionalDate,
+});
 const workFiltersSchema = z.object({
   search: z.string().trim().catch(""),
   status: z.enum(workStatuses).optional().catch(undefined),

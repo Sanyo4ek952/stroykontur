@@ -143,6 +143,7 @@ export default async function ProjectWorksPage({
                 <Detail label="Плановый финиш">
                   {formatDate(work.planned_finish_date)}
                 </Detail>
+                <Detail label="Зона">{work.areaLabel}</Detail>
                 <Detail label="Ответственный">
                   {work.responsibleLabel ?? "Не назначен"}
                 </Detail>

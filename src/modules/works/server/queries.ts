@@ -58,7 +58,7 @@ export async function getWorks(projectId: string, filters: WorkFilters) {
   let query = supabase
     .from("works")
     .select(
-      "id, code, title, status, planned_quantity, unit, planned_start_date, planned_finish_date",
+      "id, code, title, status, planned_quantity, unit, planned_start_date, planned_finish_date, project_area_id",
     )
     .eq("project_id", projectId)
     .order("code");
@@ -70,7 +70,7 @@ export async function getWorks(projectId: string, filters: WorkFilters) {
   if (error) queryError("Не удалось загрузить работы проекта.");
   if (works.length === 0) return [];
 
-  const [ownMemberId, assignmentsResult] = await Promise.all([
+  const [ownMemberId, assignmentsResult, areasResult] = await Promise.all([
     getOwnProjectMemberId(projectId),
     supabase
       .from("work_assignments")
@@ -81,10 +81,15 @@ export async function getWorks(projectId: string, filters: WorkFilters) {
         "work_id",
         works.map(({ id }) => id),
       ),
+    supabase
+      .from("project_areas")
+      .select("id, code, name")
+      .eq("project_id", projectId),
   ]);
-
-  if (assignmentsResult.error)
+  if (assignmentsResult.error || areasResult.error)
     queryError("Не удалось загрузить ответственных.");
+  const areas = new Map(areasResult.data.map((area) => [area.id, area]));
+
   const assignments = new Map(
     assignmentsResult.data.map((assignment) => [
       assignment.work_id,
@@ -94,8 +99,10 @@ export async function getWorks(projectId: string, filters: WorkFilters) {
 
   return works.map((work) => {
     const assignment = assignments.get(work.id);
+    const area = work.project_area_id ? areas.get(work.project_area_id) : null;
     return {
       ...work,
+      areaLabel: area ? `${area.code} · ${area.name}` : "Зона не назначена",
       responsibleLabel: assignment
         ? memberLabel(assignment.project_member_id, ownMemberId)
         : null,
@@ -110,7 +117,7 @@ export async function getWorkDetails(projectId: string, workId: string) {
   const { data: work, error } = await supabase
     .from("works")
     .select(
-      "id, code, title, status, planned_quantity, unit, planned_start_date, planned_finish_date, created_at, updated_at",
+      "id, code, title, status, planned_quantity, unit, planned_start_date, planned_finish_date, project_area_id, created_at, updated_at",
     )
     .eq("project_id", projectId)
     .eq("id", workId)
@@ -118,6 +125,8 @@ export async function getWorkDetails(projectId: string, workId: string) {
 
   if (error) queryError("Не удалось загрузить работу.");
   if (!work) return null;
+  const { data: workArea, error: workAreaError } = work.project_area_id ? await supabase.from("project_areas").select("code, name").eq("project_id", projectId).eq("id", work.project_area_id).maybeSingle() : { data: null, error: null };
+  if (workAreaError) queryError("Не удалось загрузить зону работы.");
 
   const [ownMemberId, assignmentsResult, dependenciesResult, progressResult] =
     await Promise.all([
@@ -183,6 +192,7 @@ export async function getWorkDetails(projectId: string, workId: string) {
 
   return {
     ...work,
+    areaLabel: workArea ? `${workArea.code} · ${workArea.name}` : "Зона не назначена",
     assignmentHistory,
     blockedBy: dependenciesResult.data
       .filter((dependency) => dependency.dependent_work_id === workId)
@@ -314,4 +324,62 @@ export async function getWorkAssignmentCandidates(projectId: string) {
       id: member.id,
       label: `Участник проекта · ${member.id.slice(0, 8)}`,
     }));
+}
+
+export async function canReportWorkProgress(
+  projectId: string,
+  projectAreaId: string | null,
+) {
+  if (!projectAreaId) return false;
+  const supabase = await createServerSupabaseClient();
+  const { data: member, error: memberError } = await supabase
+    .from("project_members")
+    .select("id")
+    .eq("project_id", projectId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (memberError || !member) return false;
+  const [rolesResult, areaResult] = await Promise.all([
+    supabase
+      .from("project_member_roles")
+      .select("role_id")
+      .eq("project_id", projectId)
+      .eq("project_member_id", member.id)
+      .eq("status", "active"),
+    supabase
+      .from("project_member_areas")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("project_member_id", member.id)
+      .eq("project_area_id", projectAreaId)
+      .is("removed_at", null)
+      .maybeSingle(),
+  ]);
+  if (
+    rolesResult.error ||
+    areaResult.error ||
+    !areaResult.data ||
+    rolesResult.data.length === 0
+  )
+    return false;
+  const { data: grants, error: grantsError } = await supabase
+    .from("role_permissions")
+    .select("permission_id")
+    .in(
+      "role_id",
+      rolesResult.data.map(({ role_id }) => role_id),
+    )
+    .eq("scope_type", "area");
+  if (grantsError || grants.length === 0) return false;
+  const { data: permission, error: permissionError } = await supabase
+    .from("permissions")
+    .select("id")
+    .eq("key", "work.progress.report")
+    .eq("status", "active")
+    .maybeSingle();
+  return (
+    !permissionError &&
+    permission !== null &&
+    grants.some((grant) => grant.permission_id === permission.id)
+  );
 }

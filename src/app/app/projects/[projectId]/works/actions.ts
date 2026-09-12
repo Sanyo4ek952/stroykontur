@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { postgresUuidSchema, workSchema } from "@/modules/works/model/schemas";
+import {
+  postgresUuidSchema,
+  workProgressSchema,
+  workSchema,
+} from "@/modules/works/model/schemas";
 import {
   acceptWorkCommand,
   blockWorkCommand,
@@ -13,6 +17,7 @@ import {
   markWorkReadyForInspectionCommand,
   requireWorkReworkCommand,
   resumeBlockedWorkCommand,
+  reportWorkProgressCommand,
   startWorkCommand,
   WorkCommandError,
   type WorkCommandErrorCode,
@@ -31,10 +36,20 @@ export type WorkActionState = {
   message?: string;
 };
 
+export type WorkProgressActionState = {
+  fieldErrors?: {
+    note?: string[];
+    quantity?: string[];
+    recordedForDate?: string[];
+  };
+  message?: string;
+};
+
 const errorMessages: Record<WorkCommandErrorCode, string> = {
   FORBIDDEN: "Недостаточно прав для выполнения действия.",
   INVALID_DATES: "Дата окончания не может быть раньше даты начала.",
   INVALID_QUANTITY_UNIT: "Проверьте плановый объём и единицу измерения.",
+  PROGRESS_UNAVAILABLE: "Недостаточно прав для фиксации прогресса в этой зоне.",
   PROJECT_NOT_FOUND: "Проект не найден или недоступен.",
   TRANSITION_UNAVAILABLE: "Переход из текущего состояния недоступен.",
   UNEXPECTED: "Не удалось сохранить работу. Обновите страницу и повторите.",
@@ -90,6 +105,40 @@ export async function createWork(
   redirect(`${worksPath}/${workId}`);
 }
 
+export async function reportWorkProgress(
+  projectId: string,
+  workId: string,
+  _state: WorkProgressActionState,
+  formData: FormData,
+): Promise<WorkProgressActionState> {
+  const parsedProjectId = postgresUuidSchema.safeParse(projectId);
+  const parsedWorkId = postgresUuidSchema.safeParse(workId);
+  const parsed = workProgressSchema.safeParse({
+    note: formData.get("note"),
+    quantity: formData.get("quantity"),
+    recordedForDate: formData.get("recordedForDate"),
+  });
+  if (!parsedProjectId.success || !parsedWorkId.success)
+    return { message: "Работа не найдена." };
+  if (!parsed.success)
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  await requireUser();
+  try {
+    await reportWorkProgressCommand({
+      commandId: crypto.randomUUID(),
+      note: parsed.data.note ?? null,
+      quantity: parsed.data.quantity,
+      recordedForDate: parsed.data.recordedForDate ?? null,
+      workId: parsedWorkId.data,
+    });
+  } catch (error) {
+    return { message: actionError(error).message };
+  }
+  const path = `/app/projects/${parsedProjectId.data}/works/${parsedWorkId.data}`;
+  revalidatePath(`/app/projects/${parsedProjectId.data}/works`);
+  revalidatePath(path);
+  return {};
+}
 export type WorkLifecycleActionState = { message?: string };
 
 async function runLifecycleAction(

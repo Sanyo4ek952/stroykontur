@@ -10,7 +10,8 @@ export type WorkCommandErrorCode =
   | "TRANSITION_UNAVAILABLE"
   | "UNEXPECTED"
   | "WORK_DUPLICATE"
-  | "WORK_NOT_FOUND";
+  | "WORK_NOT_FOUND"
+  | "PROGRESS_UNAVAILABLE";
 
 export class WorkCommandError extends Error {
   constructor(readonly code: WorkCommandErrorCode) {
@@ -54,6 +55,29 @@ function mapLifecycleError(error: { code?: string }): never {
   if (error.code === "22023")
     throw new WorkCommandError("TRANSITION_UNAVAILABLE");
   throw new WorkCommandError("UNEXPECTED");
+}
+
+export async function reportWorkProgressCommand(input: {
+  workId: string;
+  quantity: number;
+  recordedForDate: string | null;
+  note: string | null;
+  commandId: string;
+}) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("report_work_progress", {
+    p_work_id: input.workId,
+    p_quantity: input.quantity,
+    p_recorded_for_date: input.recordedForDate ?? (null as never),
+    p_note: input.note ?? (null as never),
+    p_command_id: input.commandId,
+  });
+  if (error) {
+    if (["42501", "P0002", "22023", "WP002"].includes(error.code ?? "")) {
+      throw new WorkCommandError("PROGRESS_UNAVAILABLE");
+    }
+    throw new WorkCommandError("UNEXPECTED");
+  }
 }
 
 export async function markWorkReadyCommand(projectId: string, workId: string) {

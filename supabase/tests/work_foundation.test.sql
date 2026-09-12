@@ -66,8 +66,8 @@ select table_privs_are(
   'public',
   'work_progress_entries',
   'authenticated',
-  array['SELECT', 'INSERT'],
-  'WorkProgressEntry privileges exclude fact update and delete'
+  array['SELECT'],
+  'WorkProgressEntry mutation is available only through report_work_progress'
 );
 
 select is(

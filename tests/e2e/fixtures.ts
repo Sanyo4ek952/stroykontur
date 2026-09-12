@@ -13,10 +13,13 @@ type Scenario = {
     issueTechnicalDocument: string;
     lifecycleWork: string;
     reworkWork: string;
+    areaA: string;
+    areaB: string;
   };
   demoUser: Credentials;
   manager: Credentials;
   quality: Credentials;
+  field: Credentials;
 };
 
 export const test = base.extend<{ scenario: Scenario }>({

@@ -7,11 +7,13 @@ import {
   getWorkAssignmentCandidates,
   getWorkCapabilities,
   getWorkDetails,
+  canReportWorkProgress,
 } from "@/modules/works/server/queries";
 
 import { DocumentWorkLinkManager } from "../../document-work-link-manager";
 import { WorkAssignmentControls } from "./assignment-controls";
 import { WorkLifecycleControls } from "./lifecycle-controls";
+import { WorkProgressControls } from "./progress-controls";
 import { getWorkLifecycleActions } from "@/modules/works/model/lifecycle";
 import {
   Detail,
@@ -80,6 +82,10 @@ export default async function WorkDetailsPage({
   ]);
   if (!work) return <EmptyState title="Работа не найдена." />;
 
+  const canReportProgress = await canReportWorkProgress(
+    projectId,
+    work.project_area_id,
+  );
   const candidates = capabilities.canAssignWork
     ? await getWorkAssignmentCandidates(projectId)
     : [];
@@ -106,6 +112,7 @@ export default async function WorkDetailsPage({
         <h2 className="text-lg font-semibold text-slate-950">Работа</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Detail label="Код">{work.code}</Detail>
+          <Detail label="Зона">{work.areaLabel}</Detail>
           <Detail label="Плановый объём">
             {work.planned_quantity === null
               ? "Не задан"
@@ -228,8 +235,18 @@ export default async function WorkDetailsPage({
           История прогресса
         </h2>
         <p className="mt-1 text-sm text-slate-600">
-          Только просмотр. Запись прогресса недоступна до появления
-          утверждённого Area-контекста Work.
+          Факт не меняет статус работы; итог вычисляется как сумма записей.
+        </p>
+        {canReportProgress ? (
+          <WorkProgressControls projectId={projectId} workId={work.id} />
+        ) : null}
+        <p className="mt-3 text-base font-semibold text-slate-950">
+          Итого:{" "}
+          {work.progress.reduce(
+            (total, entry) => total + Number(entry.quantity),
+            0,
+          )}{" "}
+          {work.unit ?? "ед."}
         </p>
         {work.progress.length === 0 ? (
           <div className="mt-3">

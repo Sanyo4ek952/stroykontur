@@ -13,6 +13,11 @@ const workCreatorCredentials = {
   password: "Work-Task015-2026!",
 };
 
+const fieldCredentials = {
+  email: "field@construction.test",
+  password: "Field-Task020-2026!",
+};
+
 const workQualityCredentials = {
   email: "work.quality@construction.test",
   password: "Work-Task018-2026!",
@@ -25,6 +30,9 @@ const ids = {
   projectMember: "30120000-0000-0000-0000-000000000001",
   workCreatorProjectMember: "30120000-0000-0000-0000-000000000002",
   workQualityProjectMember: "30120000-0000-0000-0000-000000000018",
+  fieldProjectMember: "30120000-0000-0000-0000-000000000020",
+  areaA: "40120000-0000-0000-0000-000000000001",
+  areaB: "40120000-0000-0000-0000-000000000002",
   lifecycleWork: "70120000-0000-0000-0000-000000000018",
   reworkWork: "70120000-0000-0000-0000-000000000019",
   technicalDocument: "50120000-0000-0000-0000-000000000001",
@@ -69,6 +77,7 @@ if (e2eNamespace) {
     demoCredentials,
     workCreatorCredentials,
     workQualityCredentials,
+    fieldCredentials,
   ]) {
     credentials.email = credentials.email.replace(
       "@",
@@ -161,6 +170,78 @@ async function findOrCreateDemoUser(adminClient, credentials) {
   return data.user.id;
 }
 
+
+async function ensureTask020Fixture(adminClient, fieldUserId) {
+  const { data: fieldMember, error: memberError } = await adminClient
+    .from("project_members")
+    .select("id")
+    .eq("project_id", ids.project)
+    .eq("user_id", fieldUserId)
+    .maybeSingle();
+  if (memberError) throw new Error("Не удалось проверить полевого участника.");
+  const projectMemberId = fieldMember?.id ?? ids.fieldProjectMember;
+  if (!fieldMember) {
+    await insertOne(adminClient, "project_members", {
+      id: projectMemberId,
+      project_id: ids.project,
+      project_organization_id: ids.projectOrganization,
+      user_id: fieldUserId,
+      status: "active",
+    });
+  }
+  const { data: masterRole, error: masterRoleError } = await adminClient
+    .from("roles")
+    .select("id")
+    .eq("code", "master")
+    .single();
+  if (masterRoleError) throw new Error("Не найдена существующая роль master.");
+  const { data: ptoRole, error: ptoRoleError } = await adminClient
+    .from("roles")
+    .select("id")
+    .eq("code", "pto")
+    .single();
+  if (ptoRoleError) throw new Error("Не найдена существующая роль pto.");
+  const { error: roleError } = await adminClient.from("project_member_roles").upsert(
+    [
+      { project_id: ids.project, project_member_id: projectMemberId, role_id: masterRole.id },
+      { project_id: ids.project, project_member_id: projectMemberId, role_id: ptoRole.id },
+    ],
+    { onConflict: "project_member_id,role_id", ignoreDuplicates: true },
+  );
+  if (roleError) throw new Error("Не удалось назначить роли полевому участнику.");
+  for (const area of [
+    { id: ids.areaA, code: "AREA-A", name: "Зона A" },
+    { id: ids.areaB, code: "AREA-B", name: "Зона B" },
+  ]) {
+    const { error } = await adminClient.from("project_areas").upsert(
+      { ...area, project_id: ids.project, created_by: fieldUserId },
+      { onConflict: "id", ignoreDuplicates: true },
+    );
+    if (error) throw new Error("Не удалось подготовить Area TASK-020.");
+  }
+  const { data: areaMembership, error: areaMembershipError } = await adminClient
+    .from("project_member_areas")
+    .select("id")
+    .eq("project_id", ids.project)
+    .eq("project_member_id", projectMemberId)
+    .eq("project_area_id", ids.areaA)
+    .is("removed_at", null)
+    .maybeSingle();
+  if (areaMembershipError) throw new Error("Не удалось проверить доступ к Area A.");
+  if (!areaMembership) {
+    await insertOne(adminClient, "project_member_areas", {
+      project_id: ids.project,
+      project_member_id: projectMemberId,
+      project_area_id: ids.areaA,
+      assigned_by: fieldUserId,
+    });
+  }
+  const [workA, workB] = await Promise.all([
+    adminClient.from("works").update({ project_area_id: ids.areaA }).eq("project_id", ids.project).eq("id", ids.work),
+    adminClient.from("works").update({ project_area_id: ids.areaB }).eq("project_id", ids.project).eq("id", ids.blockedWork),
+  ]);
+  if (workA.error || workB.error) throw new Error("Не удалось назначить Area работам TASK-020.");
+}
 async function main() {
   const { privilegedKey, publishableKey, url } = readLocalSupabaseEnvironment();
   const adminClient = createClient(url, privilegedKey, {
@@ -171,9 +252,11 @@ async function main() {
     adminClient,
     workCreatorCredentials,
   );
+  const fieldUserId = await findOrCreateDemoUser(adminClient, fieldCredentials);
   const workQualityUserId = await findOrCreateDemoUser(
     adminClient,
     workQualityCredentials,
+    fieldCredentials,
   );
 
   const { data: existingProject, error: existingProjectError } =
@@ -390,6 +473,8 @@ async function main() {
     });
   }
 
+  await ensureTask020Fixture(adminClient, fieldUserId);
+
   // Add TASK-018 fixtures to an existing local demo without resetting history.
   const { data: qualityMember, error: qualityMemberError } = await adminClient
     .from("project_members")
@@ -500,6 +585,7 @@ async function main() {
         demoUser: demoCredentials,
         manager: workCreatorCredentials,
         quality: workQualityCredentials,
+        field: fieldCredentials,
       }),
     );
     return;
@@ -510,7 +596,9 @@ async function main() {
   console.log(`Пароль: ${demoCredentials.password}`);
   console.log(`Логин для создания Work: ${workCreatorCredentials.email}`);
   console.log(`Пароль для создания Work: ${workCreatorCredentials.password}`);
-  console.log(`Логин стройконтроля: ${workQualityCredentials.email}`);
+  console.log("Логин стройконтроля: " + workQualityCredentials.email);
+  console.log("Логин полевого пользователя: " + fieldCredentials.email);
+  console.log("Пароль полевого пользователя: " + fieldCredentials.password);
   console.log(`Пароль стройконтроля: ${workQualityCredentials.password}`);
   console.log(
     notification.read_at === null && acknowledgementCount === 0

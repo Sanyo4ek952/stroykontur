@@ -164,6 +164,8 @@ export type Database = {
           id: string;
           lifecycle_transition_id: string | null;
           occurred_at: string;
+          progress_change_id: string | null;
+          project_area_id: string | null;
           project_id: string;
           subject_id: string;
           subject_type: string;
@@ -180,6 +182,8 @@ export type Database = {
           id?: string;
           lifecycle_transition_id?: string | null;
           occurred_at?: string;
+          progress_change_id?: string | null;
+          project_area_id?: string | null;
           project_id: string;
           subject_id: string;
           subject_type: string;
@@ -196,6 +200,8 @@ export type Database = {
           id?: string;
           lifecycle_transition_id?: string | null;
           occurred_at?: string;
+          progress_change_id?: string | null;
+          project_area_id?: string | null;
           project_id?: string;
           subject_id?: string;
           subject_type?: string;
@@ -243,6 +249,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "work_assignment_candidates";
             referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "audit_entries_project_id_progress_change_id_fkey";
+            columns: ["project_id", "progress_change_id"];
+            isOneToOne: false;
+            referencedRelation: "work_progress_changes";
+            referencedColumns: ["project_id", "command_id"];
           },
           {
             foreignKeyName: "audit_entries_project_id_to_project_member_id_fkey";
@@ -514,6 +527,8 @@ export type Database = {
           id: string;
           lifecycle_transition_id: string | null;
           occurred_at: string;
+          progress_change_id: string | null;
+          project_area_id: string | null;
           project_id: string;
           subject_id: string;
           subject_type: string;
@@ -530,6 +545,8 @@ export type Database = {
           id?: string;
           lifecycle_transition_id?: string | null;
           occurred_at?: string;
+          progress_change_id?: string | null;
+          project_area_id?: string | null;
           project_id: string;
           subject_id: string;
           subject_type: string;
@@ -546,6 +563,8 @@ export type Database = {
           id?: string;
           lifecycle_transition_id?: string | null;
           occurred_at?: string;
+          progress_change_id?: string | null;
+          project_area_id?: string | null;
           project_id?: string;
           subject_id?: string;
           subject_type?: string;
@@ -580,6 +599,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "work_assignment_candidates";
             referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "events_project_id_progress_change_id_fkey";
+            columns: ["project_id", "progress_change_id"];
+            isOneToOne: false;
+            referencedRelation: "work_progress_changes";
+            referencedColumns: ["project_id", "command_id"];
           },
           {
             foreignKeyName: "events_project_id_to_project_member_id_fkey";
@@ -712,6 +738,106 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      project_areas: {
+        Row: {
+          code: string;
+          created_at: string;
+          created_by: string;
+          description: string | null;
+          id: string;
+          name: string;
+          project_id: string;
+        };
+        Insert: {
+          code: string;
+          created_at?: string;
+          created_by: string;
+          description?: string | null;
+          id?: string;
+          name: string;
+          project_id: string;
+        };
+        Update: {
+          code?: string;
+          created_at?: string;
+          created_by?: string;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          project_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_areas_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      project_member_areas: {
+        Row: {
+          assigned_at: string;
+          assigned_by: string;
+          id: string;
+          project_area_id: string;
+          project_id: string;
+          project_member_id: string;
+          removed_at: string | null;
+          removed_by: string | null;
+        };
+        Insert: {
+          assigned_at?: string;
+          assigned_by: string;
+          id?: string;
+          project_area_id: string;
+          project_id: string;
+          project_member_id: string;
+          removed_at?: string | null;
+          removed_by?: string | null;
+        };
+        Update: {
+          assigned_at?: string;
+          assigned_by?: string;
+          id?: string;
+          project_area_id?: string;
+          project_id?: string;
+          project_member_id?: string;
+          removed_at?: string | null;
+          removed_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_member_areas_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_member_areas_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "project_areas";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "project_member_areas_project_id_project_member_id_fkey";
+            columns: ["project_id", "project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "project_member_areas_project_id_project_member_id_fkey";
+            columns: ["project_id", "project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
       };
       project_member_roles: {
         Row: {
@@ -1355,6 +1481,84 @@ export type Database = {
           },
         ];
       };
+      work_progress_changes: {
+        Row: {
+          actor_project_member_id: string;
+          actor_user_id: string;
+          command_id: string;
+          note: string | null;
+          occurred_at: string;
+          project_area_id: string;
+          project_id: string;
+          quantity: number;
+          recorded_for_date: string;
+          work_id: string;
+          work_progress_entry_id: string;
+        };
+        Insert: {
+          actor_project_member_id: string;
+          actor_user_id: string;
+          command_id: string;
+          note?: string | null;
+          occurred_at?: string;
+          project_area_id: string;
+          project_id: string;
+          quantity: number;
+          recorded_for_date: string;
+          work_id: string;
+          work_progress_entry_id: string;
+        };
+        Update: {
+          actor_project_member_id?: string;
+          actor_user_id?: string;
+          command_id?: string;
+          note?: string | null;
+          occurred_at?: string;
+          project_area_id?: string;
+          project_id?: string;
+          quantity?: number;
+          recorded_for_date?: string;
+          work_id?: string;
+          work_progress_entry_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_progress_changes_project_id_actor_project_member_id_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_progress_changes_project_id_actor_project_member_id_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_progress_changes_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "project_areas";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_progress_changes_project_id_work_id_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_progress_changes_project_id_work_progress_entry_id_fkey";
+            columns: ["project_id", "work_progress_entry_id"];
+            isOneToOne: false;
+            referencedRelation: "work_progress_entries";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
       work_progress_entries: {
         Row: {
           created_at: string;
@@ -1413,6 +1617,7 @@ export type Database = {
           planned_finish_date: string | null;
           planned_quantity: number | null;
           planned_start_date: string | null;
+          project_area_id: string | null;
           project_id: string;
           status: string;
           title: string;
@@ -1428,6 +1633,7 @@ export type Database = {
           planned_finish_date?: string | null;
           planned_quantity?: number | null;
           planned_start_date?: string | null;
+          project_area_id?: string | null;
           project_id: string;
           status?: string;
           title: string;
@@ -1443,6 +1649,7 @@ export type Database = {
           planned_finish_date?: string | null;
           planned_quantity?: number | null;
           planned_start_date?: string | null;
+          project_area_id?: string | null;
           project_id?: string;
           status?: string;
           title?: string;
@@ -1450,6 +1657,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "works_project_area_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "project_areas";
+            referencedColumns: ["project_id", "id"];
+          },
           {
             foreignKeyName: "works_project_id_fkey";
             columns: ["project_id"];
@@ -1562,6 +1776,16 @@ export type Database = {
           p_expected_current_assignment_id: string;
           p_new_project_member_id: string;
           p_reason: string;
+          p_work_id: string;
+        };
+        Returns: string;
+      };
+      report_work_progress: {
+        Args: {
+          p_command_id: string;
+          p_note: string;
+          p_quantity: number;
+          p_recorded_for_date: string;
           p_work_id: string;
         };
         Returns: string;
