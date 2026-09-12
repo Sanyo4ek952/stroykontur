@@ -23,10 +23,13 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:types": "node scripts/generate-database-types.mjs",
+    "demo:seed": "node scripts/seed-task-012-demo.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.5",
+    "@supabase/supabase-js": "2.112.4",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",

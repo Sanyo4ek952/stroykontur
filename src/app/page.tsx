@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-5xl items-center px-5 py-12 sm:px-8 lg:px-12">
@@ -15,12 +17,20 @@ export default function HomePage() {
           Основа приложения готова. Рабочие процессы будут добавляться поэтапно
           в следующих задачах.
         </p>
-        <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
-          <span
-            aria-hidden="true"
-            className="size-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100"
-          />
-          Система готова к настройке
+        <div className="mt-8 flex flex-wrap items-center gap-4">
+          <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm">
+            <span
+              aria-hidden="true"
+              className="size-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-100"
+            />
+            Система готова к настройке
+          </div>
+          <Link
+            className="inline-flex min-h-11 items-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            href="/login"
+          >
+            Войти
+          </Link>
         </div>
       </section>
     </main>

@@ -945,6 +945,7 @@ safety.work_permit.issue
 - `documents.submit`
 - `documents.approve`
 - `documents.issue_for_work`
+- `documents.work_link.manage` — владелец: `pto`, scope: `PROJECT`
 - `documents.annul`
 
 ## Production
@@ -955,7 +956,22 @@ safety.work_permit.issue
 - `work.assign`
 - `work.progress.report`
 - `work.progress.confirm`
+- `work.ready` — владелец: `construction_director`, scope: `PROJECT`
+- `work.start` — владелец: `construction_director`, scope: `PROJECT`
+- `work.ready_for_inspection` — владелец: `construction_director`, scope: `PROJECT`
+- `work.block` — владелец: `construction_director`, scope: `PROJECT`
+- `work.rework` — владелец: `construction_control_engineer`, scope: `PROJECT`
 - `work.close`
+
+В TASK-018 производственные команды используют только точный scope `project`:
+`work.ready`, `work.start`, `work.ready_for_inspection`, `work.block`,
+`work.close` — роль `construction_director`.
+`work.block` разрешает блокировку и возобновление после устранения причины.
+Приёмка использует существующий `quality.work.accept` / `project`,
+возврат на доработку — `work.rework` / `project`; оба действия закреплены
+за `construction_control_engineer`. Нового ключа `work.accept` нет.
+Существующий `work.close` / `area` у `site_manager` не расширяется
+и не даёт доступа к этим PROJECT-командам. AREA-делегирование отложено.
 
 ## Supply
 
