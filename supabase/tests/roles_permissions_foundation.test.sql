@@ -481,12 +481,12 @@ select is(
 
 select is(
   (select count(*) from public.permissions),
-  76::bigint,
+  78::bigint,
   'all canonical permission keys are seeded'
 );
 select is(
   (select count(*) from public.permissions where status = 'active'),
-  76::bigint,
+  78::bigint,
   'all canonical permissions are active'
 );
 select is(
@@ -562,6 +562,8 @@ select is(
     'payment.approve',
     'payment.register',
     'payment.view',
+    'project_area.assign_members',
+    'project_area.manage',
     'project.manage',
     'project.members.assign',
     'project.members.view',
@@ -1071,7 +1073,7 @@ select is(
 );
 select is(
   (select count(*) from public.permissions),
-  76::bigint,
+  78::bigint,
   'authenticated User A can read the Permission catalog'
 );
 select ok(

@@ -125,7 +125,14 @@ export async function getWorkDetails(projectId: string, workId: string) {
 
   if (error) queryError("Не удалось загрузить работу.");
   if (!work) return null;
-  const { data: workArea, error: workAreaError } = work.project_area_id ? await supabase.from("project_areas").select("code, name").eq("project_id", projectId).eq("id", work.project_area_id).maybeSingle() : { data: null, error: null };
+  const { data: workArea, error: workAreaError } = work.project_area_id
+    ? await supabase
+        .from("project_areas")
+        .select("code, name")
+        .eq("project_id", projectId)
+        .eq("id", work.project_area_id)
+        .maybeSingle()
+    : { data: null, error: null };
   if (workAreaError) queryError("Не удалось загрузить зону работы.");
 
   const [ownMemberId, assignmentsResult, dependenciesResult, progressResult] =
@@ -147,7 +154,9 @@ export async function getWorkDetails(projectId: string, workId: string) {
         .or(`dependent_work_id.eq.${workId},depends_on_work_id.eq.${workId}`),
       supabase
         .from("work_progress_entries")
-        .select("id, work_date, quantity, note, created_by, created_at")
+        .select(
+          "id, work_date, quantity, note, created_by, created_at, confirmation_status, confirmed_at, confirmed_by, returned_at, returned_by, return_reason",
+        )
         .eq("project_id", projectId)
         .eq("work_id", workId)
         .order("work_date", { ascending: false })
@@ -192,7 +201,9 @@ export async function getWorkDetails(projectId: string, workId: string) {
 
   return {
     ...work,
-    areaLabel: workArea ? `${workArea.code} · ${workArea.name}` : "Зона не назначена",
+    areaLabel: workArea
+      ? `${workArea.code} · ${workArea.name}`
+      : "Зона не назначена",
     assignmentHistory,
     blockedBy: dependenciesResult.data
       .filter((dependency) => dependency.dependent_work_id === workId)
@@ -209,6 +220,18 @@ export async function getWorkDetails(projectId: string, workId: string) {
       ...entry,
       reporterLabel:
         entry.created_by === currentUserId ? "Вы" : "Пользователь проекта",
+      confirmerLabel:
+        entry.confirmed_by === null
+          ? null
+          : entry.confirmed_by === currentUserId
+            ? "Вы"
+            : "Пользователь проекта",
+      returnerLabel:
+        entry.returned_by === null
+          ? null
+          : entry.returned_by === currentUserId
+            ? "Вы"
+            : "Пользователь проекта",
     })),
   };
 }
@@ -326,9 +349,10 @@ export async function getWorkAssignmentCandidates(projectId: string) {
     }));
 }
 
-export async function canReportWorkProgress(
+async function canManageWorkProgressInArea(
   projectId: string,
   projectAreaId: string | null,
+  permissionKey: "work.progress.report" | "work.progress.confirm",
 ) {
   if (!projectAreaId) return false;
   const supabase = await createServerSupabaseClient();
@@ -339,6 +363,7 @@ export async function canReportWorkProgress(
     .eq("status", "active")
     .maybeSingle();
   if (memberError || !member) return false;
+
   const [rolesResult, areaResult] = await Promise.all([
     supabase
       .from("project_member_roles")
@@ -360,8 +385,10 @@ export async function canReportWorkProgress(
     areaResult.error ||
     !areaResult.data ||
     rolesResult.data.length === 0
-  )
+  ) {
     return false;
+  }
+
   const { data: grants, error: grantsError } = await supabase
     .from("role_permissions")
     .select("permission_id")
@@ -371,15 +398,38 @@ export async function canReportWorkProgress(
     )
     .eq("scope_type", "area");
   if (grantsError || grants.length === 0) return false;
+
   const { data: permission, error: permissionError } = await supabase
     .from("permissions")
     .select("id")
-    .eq("key", "work.progress.report")
+    .eq("key", permissionKey)
     .eq("status", "active")
     .maybeSingle();
   return (
     !permissionError &&
     permission !== null &&
     grants.some((grant) => grant.permission_id === permission.id)
+  );
+}
+
+export function canReportWorkProgress(
+  projectId: string,
+  projectAreaId: string | null,
+) {
+  return canManageWorkProgressInArea(
+    projectId,
+    projectAreaId,
+    "work.progress.report",
+  );
+}
+
+export function canConfirmWorkProgress(
+  projectId: string,
+  projectAreaId: string | null,
+) {
+  return canManageWorkProgressInArea(
+    projectId,
+    projectAreaId,
+    "work.progress.confirm",
   );
 }

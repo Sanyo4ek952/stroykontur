@@ -1,19 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import {
+  getWorkProgressStatusLabel,
+  getWorkProgressTotals,
+} from "@/modules/works/model/progress";
 import { postgresUuidSchema } from "@/modules/works/model/schemas";
 import { getWorkDocumentLinkData } from "@/modules/document-work-links/server/queries";
 import {
   getWorkAssignmentCandidates,
   getWorkCapabilities,
   getWorkDetails,
+  canConfirmWorkProgress,
   canReportWorkProgress,
 } from "@/modules/works/server/queries";
 
 import { DocumentWorkLinkManager } from "../../document-work-link-manager";
 import { WorkAssignmentControls } from "./assignment-controls";
 import { WorkLifecycleControls } from "./lifecycle-controls";
-import { WorkProgressControls } from "./progress-controls";
+import {
+  WorkProgressControls,
+  WorkProgressDecisionControls,
+} from "./progress-controls";
 import { getWorkLifecycleActions } from "@/modules/works/model/lifecycle";
 import {
   Detail,
@@ -82,10 +90,11 @@ export default async function WorkDetailsPage({
   ]);
   if (!work) return <EmptyState title="Работа не найдена." />;
 
-  const canReportProgress = await canReportWorkProgress(
-    projectId,
-    work.project_area_id,
-  );
+  const [canReportProgress, canConfirmProgress] = await Promise.all([
+    canReportWorkProgress(projectId, work.project_area_id),
+    canConfirmWorkProgress(projectId, work.project_area_id),
+  ]);
+  const progressTotals = getWorkProgressTotals(work.progress);
   const candidates = capabilities.canAssignWork
     ? await getWorkAssignmentCandidates(projectId)
     : [];
@@ -235,18 +244,30 @@ export default async function WorkDetailsPage({
           История прогресса
         </h2>
         <p className="mt-1 text-sm text-slate-600">
-          Факт не меняет статус работы; итог вычисляется как сумма записей.
+          Подтверждённый итог не меняет статус работы и включает только
+          подтверждённые записи.
         </p>
         {canReportProgress ? (
           <WorkProgressControls projectId={projectId} workId={work.id} />
         ) : null}
-        <p className="mt-3 text-base font-semibold text-slate-950">
-          Итого:{" "}
-          {work.progress.reduce(
-            (total, entry) => total + Number(entry.quantity),
-            0,
-          )}{" "}
-          {work.unit ?? "ед."}
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Detail label="Подтверждено">
+            {progressTotals.confirmed} {work.unit ?? "ед."}
+          </Detail>
+          <Detail label="Ожидает подтверждения">
+            {progressTotals.reported} {work.unit ?? "ед."}
+          </Detail>
+          <Detail label="Плановый объём">
+            {work.planned_quantity === null
+              ? "Не задан"
+              : `${work.planned_quantity} ${work.unit ?? "ед."}`}
+          </Detail>
+          <Detail label="Возвращено">
+            {progressTotals.returned} {work.unit ?? "ед."}
+          </Detail>
+        </dl>
+        <p className="mt-4 text-base font-semibold text-slate-950">
+          Итого выполнено: {progressTotals.confirmed} {work.unit ?? "ед."}
         </p>
         {work.progress.length === 0 ? (
           <div className="mt-3">
@@ -268,14 +289,44 @@ export default async function WorkDetailsPage({
                       Дата работ: {formatDate(entry.work_date)}
                     </p>
                   </div>
-                  <p className="text-sm text-slate-600">
-                    {formatDateTime(entry.created_at)} · {entry.reporterLabel}
-                  </p>
+                  <div className="text-right text-sm text-slate-600">
+                    <p>
+                      {getWorkProgressStatusLabel(
+                        entry.confirmation_status,
+                        entry.return_reason,
+                      )}
+                    </p>
+                    <p className="mt-1">
+                      {formatDateTime(entry.created_at)} · {entry.reporterLabel}
+                    </p>
+                  </div>
                 </div>
                 {entry.note ? (
                   <p className="mt-3 text-sm leading-6 text-slate-700">
                     {entry.note}
                   </p>
+                ) : null}
+                {entry.confirmation_status === "CONFIRMED" &&
+                entry.confirmed_at ? (
+                  <p className="mt-3 text-sm text-slate-600">
+                    Подтвердил {formatDateTime(entry.confirmed_at)} ·{" "}
+                    {entry.confirmerLabel}
+                  </p>
+                ) : null}
+                {entry.confirmation_status === "RETURNED" &&
+                entry.returned_at ? (
+                  <p className="mt-3 text-sm text-slate-600">
+                    Вернул {formatDateTime(entry.returned_at)} ·{" "}
+                    {entry.returnerLabel}
+                  </p>
+                ) : null}
+                {canConfirmProgress &&
+                entry.confirmation_status === "REPORTED" ? (
+                  <WorkProgressDecisionControls
+                    projectId={projectId}
+                    workId={work.id}
+                    workProgressEntryId={entry.id}
+                  />
                 ) : null}
               </li>
             ))}

@@ -22,7 +22,9 @@ test("manager reassigns Work atomically and assignment history persists", async 
   const form = page
     .locator("form")
     .filter({ hasText: "Причина переназначения" });
-  await form.getByRole("combobox").selectOption({ index: 2 });
+  await form
+    .getByRole("combobox")
+    .selectOption(scenario.ids.workCreatorProjectMember);
   await form
     .getByLabel("Причина переназначения")
     .fill("Плановая замена ответственного");

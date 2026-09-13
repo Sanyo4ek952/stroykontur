@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseWorkFilters, workSchema } from "./schemas";
+import {
+  parseWorkFilters,
+  workProgressReturnSchema,
+  workSchema,
+} from "./schemas";
 
 describe("workSchema", () => {
   it("trims required fields and accepts coherent planning data", () => {
@@ -58,6 +62,19 @@ describe("workSchema", () => {
         "Дата окончания не может быть раньше даты начала.",
       );
     }
+  });
+});
+
+describe("workProgressReturnSchema", () => {
+  it("requires and trims a bounded return reason", () => {
+    expect(
+      workProgressReturnSchema.parse({ reason: "  Неверный объём  " }),
+    ).toEqual({
+      reason: "Неверный объём",
+    });
+    expect(workProgressReturnSchema.safeParse({ reason: "   " }).success).toBe(
+      false,
+    );
   });
 });
 

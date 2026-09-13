@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import {
   postgresUuidSchema,
+  workProgressReturnSchema,
   workProgressSchema,
   workSchema,
 } from "@/modules/works/model/schemas";
@@ -12,11 +13,13 @@ import {
   acceptWorkCommand,
   blockWorkCommand,
   closeWorkCommand,
+  confirmWorkProgressCommand,
   createWorkCommand,
   markWorkReadyCommand,
   markWorkReadyForInspectionCommand,
   requireWorkReworkCommand,
   resumeBlockedWorkCommand,
+  returnWorkProgressCommand,
   reportWorkProgressCommand,
   startWorkCommand,
   WorkCommandError,
@@ -45,11 +48,19 @@ export type WorkProgressActionState = {
   message?: string;
 };
 
+export type WorkProgressDecisionActionState = {
+  fieldErrors?: { reason?: string[] };
+  message?: string;
+};
+
 const errorMessages: Record<WorkCommandErrorCode, string> = {
   FORBIDDEN: "Недостаточно прав для выполнения действия.",
   INVALID_DATES: "Дата окончания не может быть раньше даты начала.",
   INVALID_QUANTITY_UNIT: "Проверьте плановый объём и единицу измерения.",
-  PROGRESS_UNAVAILABLE: "Недостаточно прав для фиксации прогресса в этой зоне.",
+  PROGRESS_STALE:
+    "Запись уже обработана другим пользователем. Обновите страницу.",
+  PROGRESS_UNAVAILABLE:
+    "Недостаточно прав для работы с прогрессом в этой зоне.",
   PROJECT_NOT_FOUND: "Проект не найден или недоступен.",
   TRANSITION_UNAVAILABLE: "Переход из текущего состояния недоступен.",
   UNEXPECTED: "Не удалось сохранить работу. Обновите страницу и повторите.",
@@ -139,6 +150,85 @@ export async function reportWorkProgress(
   revalidatePath(path);
   return {};
 }
+function revalidateWorkProgress(projectId: string, workId: string) {
+  const path = `/app/projects/${projectId}/works/${workId}`;
+  revalidatePath(`/app/projects/${projectId}/works`);
+  revalidatePath(path);
+}
+
+export async function confirmWorkProgress(
+  projectId: string,
+  workId: string,
+  workProgressEntryId: string,
+  _state: WorkProgressDecisionActionState,
+  _formData: FormData,
+): Promise<WorkProgressDecisionActionState> {
+  void _state;
+  void _formData;
+  const parsedProjectId = postgresUuidSchema.safeParse(projectId);
+  const parsedWorkId = postgresUuidSchema.safeParse(workId);
+  const parsedEntryId = postgresUuidSchema.safeParse(workProgressEntryId);
+  if (
+    !parsedProjectId.success ||
+    !parsedWorkId.success ||
+    !parsedEntryId.success
+  ) {
+    return { message: "Запись прогресса не найдена." };
+  }
+
+  await requireUser();
+  try {
+    await confirmWorkProgressCommand({
+      commandId: crypto.randomUUID(),
+      workProgressEntryId: parsedEntryId.data,
+    });
+  } catch (error) {
+    return { message: actionError(error).message };
+  }
+
+  revalidateWorkProgress(parsedProjectId.data, parsedWorkId.data);
+  return {};
+}
+
+export async function returnWorkProgress(
+  projectId: string,
+  workId: string,
+  workProgressEntryId: string,
+  _state: WorkProgressDecisionActionState,
+  formData: FormData,
+): Promise<WorkProgressDecisionActionState> {
+  const parsedProjectId = postgresUuidSchema.safeParse(projectId);
+  const parsedWorkId = postgresUuidSchema.safeParse(workId);
+  const parsedEntryId = postgresUuidSchema.safeParse(workProgressEntryId);
+  const parsed = workProgressReturnSchema.safeParse({
+    reason: formData.get("reason"),
+  });
+  if (
+    !parsedProjectId.success ||
+    !parsedWorkId.success ||
+    !parsedEntryId.success
+  ) {
+    return { message: "Запись прогресса не найдена." };
+  }
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+
+  await requireUser();
+  try {
+    await returnWorkProgressCommand({
+      commandId: crypto.randomUUID(),
+      reason: parsed.data.reason,
+      workProgressEntryId: parsedEntryId.data,
+    });
+  } catch (error) {
+    return { message: actionError(error).message };
+  }
+
+  revalidateWorkProgress(parsedProjectId.data, parsedWorkId.data);
+  return {};
+}
+
 export type WorkLifecycleActionState = { message?: string };
 
 async function runLifecycleAction(

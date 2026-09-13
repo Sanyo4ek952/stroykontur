@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 export type Credentials = { email: string; password: string };
 type Scenario = {
   ids: {
+    workCreatorProjectMember: string;
     project: string;
     work: string;
     blockedWork: string;
@@ -20,6 +21,7 @@ type Scenario = {
   manager: Credentials;
   quality: Credentials;
   field: Credentials;
+  siteManager: Credentials;
 };
 
 export const test = base.extend<{ scenario: Scenario }>({
