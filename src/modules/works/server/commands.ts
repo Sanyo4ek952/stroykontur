@@ -11,6 +11,7 @@ export type WorkCommandErrorCode =
   | "UNEXPECTED"
   | "WORK_DUPLICATE"
   | "WORK_NOT_FOUND"
+  | "PROGRESS_STALE"
   | "PROGRESS_UNAVAILABLE";
 
 export class WorkCommandError extends Error {
@@ -78,6 +79,40 @@ export async function reportWorkProgressCommand(input: {
     }
     throw new WorkCommandError("UNEXPECTED");
   }
+}
+
+function mapProgressDecisionError(error: { code?: string }): never {
+  if (error.code === "WP003") throw new WorkCommandError("PROGRESS_STALE");
+  if (["42501", "P0002", "22023", "WP002"].includes(error.code ?? "")) {
+    throw new WorkCommandError("PROGRESS_UNAVAILABLE");
+  }
+  throw new WorkCommandError("UNEXPECTED");
+}
+
+export async function confirmWorkProgressCommand(input: {
+  commandId: string;
+  workProgressEntryId: string;
+}) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("confirm_work_progress", {
+    p_command_id: input.commandId,
+    p_work_progress_entry_id: input.workProgressEntryId,
+  });
+  if (error) mapProgressDecisionError(error);
+}
+
+export async function returnWorkProgressCommand(input: {
+  commandId: string;
+  reason: string;
+  workProgressEntryId: string;
+}) {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase.rpc("return_work_progress", {
+    p_command_id: input.commandId,
+    p_reason: input.reason,
+    p_work_progress_entry_id: input.workProgressEntryId,
+  });
+  if (error) mapProgressDecisionError(error);
 }
 
 export async function markWorkReadyCommand(projectId: string, workId: string) {

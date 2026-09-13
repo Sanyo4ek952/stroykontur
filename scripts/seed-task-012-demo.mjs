@@ -18,6 +18,11 @@ const fieldCredentials = {
   password: "Field-Task020-2026!",
 };
 
+const siteManagerCredentials = {
+  email: "site.manager@construction.test",
+  password: "SiteManager-Task021-2026!",
+};
+
 const workQualityCredentials = {
   email: "work.quality@construction.test",
   password: "Work-Task018-2026!",
@@ -31,6 +36,7 @@ const ids = {
   workCreatorProjectMember: "30120000-0000-0000-0000-000000000002",
   workQualityProjectMember: "30120000-0000-0000-0000-000000000018",
   fieldProjectMember: "30120000-0000-0000-0000-000000000020",
+  siteManagerProjectMember: "30120000-0000-0000-0000-000000000121",
   areaA: "40120000-0000-0000-0000-000000000001",
   areaB: "40120000-0000-0000-0000-000000000002",
   lifecycleWork: "70120000-0000-0000-0000-000000000018",
@@ -78,6 +84,7 @@ if (e2eNamespace) {
     workCreatorCredentials,
     workQualityCredentials,
     fieldCredentials,
+    siteManagerCredentials,
   ]) {
     credentials.email = credentials.email.replace(
       "@",
@@ -170,7 +177,6 @@ async function findOrCreateDemoUser(adminClient, credentials) {
   return data.user.id;
 }
 
-
 async function ensureTask020Fixture(adminClient, fieldUserId) {
   const { data: fieldMember, error: memberError } = await adminClient
     .from("project_members")
@@ -201,22 +207,35 @@ async function ensureTask020Fixture(adminClient, fieldUserId) {
     .eq("code", "pto")
     .single();
   if (ptoRoleError) throw new Error("Не найдена существующая роль pto.");
-  const { error: roleError } = await adminClient.from("project_member_roles").upsert(
-    [
-      { project_id: ids.project, project_member_id: projectMemberId, role_id: masterRole.id },
-      { project_id: ids.project, project_member_id: projectMemberId, role_id: ptoRole.id },
-    ],
-    { onConflict: "project_member_id,role_id", ignoreDuplicates: true },
-  );
-  if (roleError) throw new Error("Не удалось назначить роли полевому участнику.");
+  const { error: roleError } = await adminClient
+    .from("project_member_roles")
+    .upsert(
+      [
+        {
+          project_id: ids.project,
+          project_member_id: projectMemberId,
+          role_id: masterRole.id,
+        },
+        {
+          project_id: ids.project,
+          project_member_id: projectMemberId,
+          role_id: ptoRole.id,
+        },
+      ],
+      { onConflict: "project_member_id,role_id", ignoreDuplicates: true },
+    );
+  if (roleError)
+    throw new Error("Не удалось назначить роли полевому участнику.");
   for (const area of [
     { id: ids.areaA, code: "AREA-A", name: "Зона A" },
     { id: ids.areaB, code: "AREA-B", name: "Зона B" },
   ]) {
-    const { error } = await adminClient.from("project_areas").upsert(
-      { ...area, project_id: ids.project, created_by: fieldUserId },
-      { onConflict: "id", ignoreDuplicates: true },
-    );
+    const { error } = await adminClient
+      .from("project_areas")
+      .upsert(
+        { ...area, project_id: ids.project, created_by: fieldUserId },
+        { onConflict: "id", ignoreDuplicates: true },
+      );
     if (error) throw new Error("Не удалось подготовить Area TASK-020.");
   }
   const { data: areaMembership, error: areaMembershipError } = await adminClient
@@ -227,7 +246,8 @@ async function ensureTask020Fixture(adminClient, fieldUserId) {
     .eq("project_area_id", ids.areaA)
     .is("removed_at", null)
     .maybeSingle();
-  if (areaMembershipError) throw new Error("Не удалось проверить доступ к Area A.");
+  if (areaMembershipError)
+    throw new Error("Не удалось проверить доступ к Area A.");
   if (!areaMembership) {
     await insertOne(adminClient, "project_member_areas", {
       project_id: ids.project,
@@ -237,11 +257,80 @@ async function ensureTask020Fixture(adminClient, fieldUserId) {
     });
   }
   const [workA, workB] = await Promise.all([
-    adminClient.from("works").update({ project_area_id: ids.areaA }).eq("project_id", ids.project).eq("id", ids.work),
-    adminClient.from("works").update({ project_area_id: ids.areaB }).eq("project_id", ids.project).eq("id", ids.blockedWork),
+    adminClient
+      .from("works")
+      .update({ project_area_id: ids.areaA })
+      .eq("project_id", ids.project)
+      .eq("id", ids.work),
+    adminClient
+      .from("works")
+      .update({ project_area_id: ids.areaB })
+      .eq("project_id", ids.project)
+      .eq("id", ids.blockedWork),
   ]);
-  if (workA.error || workB.error) throw new Error("Не удалось назначить Area работам TASK-020.");
+  if (workA.error || workB.error)
+    throw new Error("Не удалось назначить Area работам TASK-020.");
 }
+
+async function ensureTask021Fixture(adminClient, siteManagerUserId) {
+  const { data: member, error: memberError } = await adminClient
+    .from("project_members")
+    .select("id")
+    .eq("project_id", ids.project)
+    .eq("user_id", siteManagerUserId)
+    .maybeSingle();
+  if (memberError) throw new Error("Не удалось проверить начальника участка.");
+
+  const projectMemberId = member?.id ?? ids.siteManagerProjectMember;
+  if (!member) {
+    await insertOne(adminClient, "project_members", {
+      id: projectMemberId,
+      project_id: ids.project,
+      project_organization_id: ids.projectOrganization,
+      user_id: siteManagerUserId,
+      status: "active",
+    });
+  }
+
+  const { data: siteManagerRole, error: roleError } = await adminClient
+    .from("roles")
+    .select("id")
+    .eq("code", "site_manager")
+    .single();
+  if (roleError) throw new Error("Не найдена существующая роль site_manager.");
+  const { error: assignmentError } = await adminClient
+    .from("project_member_roles")
+    .upsert(
+      {
+        project_id: ids.project,
+        project_member_id: projectMemberId,
+        role_id: siteManagerRole.id,
+      },
+      { onConflict: "project_member_id,role_id", ignoreDuplicates: true },
+    );
+  if (assignmentError)
+    throw new Error("Не удалось назначить начальника участка.");
+
+  const { data: areaMembership, error: areaMembershipError } = await adminClient
+    .from("project_member_areas")
+    .select("id")
+    .eq("project_id", ids.project)
+    .eq("project_member_id", projectMemberId)
+    .eq("project_area_id", ids.areaA)
+    .is("removed_at", null)
+    .maybeSingle();
+  if (areaMembershipError)
+    throw new Error("Не удалось проверить Area A начальника участка.");
+  if (!areaMembership) {
+    await insertOne(adminClient, "project_member_areas", {
+      project_id: ids.project,
+      project_member_id: projectMemberId,
+      project_area_id: ids.areaA,
+      assigned_by: siteManagerUserId,
+    });
+  }
+}
+
 async function main() {
   const { privilegedKey, publishableKey, url } = readLocalSupabaseEnvironment();
   const adminClient = createClient(url, privilegedKey, {
@@ -253,6 +342,10 @@ async function main() {
     workCreatorCredentials,
   );
   const fieldUserId = await findOrCreateDemoUser(adminClient, fieldCredentials);
+  const siteManagerUserId = await findOrCreateDemoUser(
+    adminClient,
+    siteManagerCredentials,
+  );
   const workQualityUserId = await findOrCreateDemoUser(
     adminClient,
     workQualityCredentials,
@@ -474,6 +567,7 @@ async function main() {
   }
 
   await ensureTask020Fixture(adminClient, fieldUserId);
+  await ensureTask021Fixture(adminClient, siteManagerUserId);
 
   // Add TASK-018 fixtures to an existing local demo without resetting history.
   const { data: qualityMember, error: qualityMemberError } = await adminClient
@@ -553,6 +647,13 @@ async function main() {
   }
   await loginClient.auth.signOut({ scope: "local" });
 
+  const { error: siteManagerLoginError } =
+    await loginClient.auth.signInWithPassword(siteManagerCredentials);
+  if (siteManagerLoginError) {
+    throw new Error("Не удалось проверить вход начальника участка.");
+  }
+  await loginClient.auth.signOut({ scope: "local" });
+
   const { error: qualityLoginError } =
     await loginClient.auth.signInWithPassword(workQualityCredentials);
   if (qualityLoginError)
@@ -586,6 +687,7 @@ async function main() {
         manager: workCreatorCredentials,
         quality: workQualityCredentials,
         field: fieldCredentials,
+        siteManager: siteManagerCredentials,
       }),
     );
     return;
@@ -597,6 +699,7 @@ async function main() {
   console.log(`Логин для создания Work: ${workCreatorCredentials.email}`);
   console.log(`Пароль для создания Work: ${workCreatorCredentials.password}`);
   console.log("Логин стройконтроля: " + workQualityCredentials.email);
+  console.log("Логин начальника участка: " + siteManagerCredentials.email);
   console.log("Логин полевого пользователя: " + fieldCredentials.email);
   console.log("Пароль полевого пользователя: " + fieldCredentials.password);
   console.log(`Пароль стройконтроля: ${workQualityCredentials.password}`);

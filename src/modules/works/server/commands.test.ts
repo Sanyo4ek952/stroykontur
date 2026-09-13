@@ -55,3 +55,42 @@ describe("named Work lifecycle commands", () => {
     });
   });
 });
+
+describe("named Work progress confirmation commands", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.rpc.mockResolvedValue({ error: null });
+  });
+
+  it("calls only confirm and return RPCs with typed arguments", async () => {
+    await commands.confirmWorkProgressCommand({
+      commandId: "80180000-0000-0000-0000-000000000001",
+      workProgressEntryId: workId,
+    });
+    await commands.returnWorkProgressCommand({
+      commandId: "80180000-0000-0000-0000-000000000002",
+      reason: "Неверный объём",
+      workProgressEntryId: workId,
+    });
+
+    expect(mocks.rpc).toHaveBeenNthCalledWith(1, "confirm_work_progress", {
+      p_command_id: "80180000-0000-0000-0000-000000000001",
+      p_work_progress_entry_id: workId,
+    });
+    expect(mocks.rpc).toHaveBeenNthCalledWith(2, "return_work_progress", {
+      p_command_id: "80180000-0000-0000-0000-000000000002",
+      p_reason: "Неверный объём",
+      p_work_progress_entry_id: workId,
+    });
+  });
+
+  it("maps stale state without exposing database details", async () => {
+    mocks.rpc.mockResolvedValue({ error: { code: "WP003" } });
+    await expect(
+      commands.confirmWorkProgressCommand({
+        commandId: "80180000-0000-0000-0000-000000000003",
+        workProgressEntryId: workId,
+      }),
+    ).rejects.toMatchObject({ code: "PROGRESS_STALE" });
+  });
+});

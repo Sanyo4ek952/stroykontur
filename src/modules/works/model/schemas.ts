@@ -79,6 +79,15 @@ export const workProgressSchema = z.object({
     .positive({ error: "Выполненный объём должен быть больше нуля." }),
   recordedForDate: optionalDate,
 });
+
+export const workProgressReturnSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(1, { error: "Укажите причину возврата." })
+    .max(2000),
+});
+
 const workFiltersSchema = z.object({
   search: z.string().trim().catch(""),
   status: z.enum(workStatuses).optional().catch(undefined),

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { z } from "zod";
 
 import { getAccessibleProject } from "@/modules/application/server/queries";
+import { getAreaCapabilities } from "@/modules/project-areas/server/queries";
 import { requireUser } from "@/server/auth/require-user";
 
 import { signOut } from "../../actions";
@@ -45,7 +46,10 @@ export default async function ProjectWorkspaceLayout({
 
   if (!parsedProjectId.success) return <ProjectUnavailable />;
 
-  const project = await getAccessibleProject(parsedProjectId.data);
+  const [project, areaCapabilities] = await Promise.all([
+    getAccessibleProject(parsedProjectId.data),
+    getAreaCapabilities(parsedProjectId.data),
+  ]);
   if (!project) return <ProjectUnavailable />;
 
   return (
@@ -89,7 +93,10 @@ export default async function ProjectWorkspaceLayout({
 
       <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-8 lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-8 lg:py-8">
         <aside className="mb-4 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:mb-0 lg:self-start">
-          <ProjectNavigation projectId={project.id} />
+          <ProjectNavigation
+            projectId={project.id}
+            showAreas={areaCapabilities.canManage || areaCapabilities.canAssign}
+          />
         </aside>
         <section className="min-w-0 rounded-3xl border border-slate-200 bg-white/70 p-4 shadow-sm sm:p-6 lg:p-8">
           {children}

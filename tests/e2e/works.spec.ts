@@ -39,7 +39,12 @@ test("shows searchable read-only Work details for the demo PTO user", async ({
   await expect(
     page.getByText("Бетонирование фундаментной плиты секции 1"),
   ).toBeVisible();
-  await expect(page.getByText("18.5 т", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("listitem")
+      .filter({ hasText: "Смонтирован первый участок армирования." })
+      .getByText("18.5 т", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText("Смонтирован первый участок армирования."),
   ).toBeVisible();
@@ -91,7 +96,12 @@ test("creates a PLANNED Work through an existing project-scoped grant", async ({
     page.getByRole("heading", { name: "Работа для проверки TASK-015" }),
   ).toBeVisible();
   await expect(page.getByText("Запланирована", { exact: true })).toBeVisible();
-  await expect(page.getByText("25.5 м³", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("heading", { name: "Работа", exact: true })
+      .locator("..")
+      .getByText("25.5 м³", { exact: true }),
+  ).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "Работа для проверки TASK-015" }),
