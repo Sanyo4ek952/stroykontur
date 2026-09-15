@@ -23,6 +23,11 @@ const siteManagerCredentials = {
   password: "SiteManager-Task021-2026!",
 };
 
+const areaBConfirmerCredentials = {
+  email: "site.manager.b@construction.test",
+  password: "SiteManagerB-Task022-2026!",
+};
+
 const workQualityCredentials = {
   email: "work.quality@construction.test",
   password: "Work-Task018-2026!",
@@ -37,9 +42,14 @@ const ids = {
   workQualityProjectMember: "30120000-0000-0000-0000-000000000018",
   fieldProjectMember: "30120000-0000-0000-0000-000000000020",
   siteManagerProjectMember: "30120000-0000-0000-0000-000000000121",
+  areaBConfirmerProjectMember: "30220000-0000-0000-0000-000000000001",
+  dailyReportWork: "70220000-0000-0000-0000-000000000001",
+  qualityWork: "70240000-0000-0000-0000-000000000001",
   areaA: "40120000-0000-0000-0000-000000000001",
   areaB: "40120000-0000-0000-0000-000000000002",
   lifecycleWork: "70120000-0000-0000-0000-000000000018",
+  lifecycleWorkAssignment: "71120000-0000-0000-0000-000000000018",
+  lifecycleDocumentWorkLink: "80120000-0000-0000-0000-000000000018",
   reworkWork: "70120000-0000-0000-0000-000000000019",
   technicalDocument: "50120000-0000-0000-0000-000000000001",
   documentRevision: "60120000-0000-0000-0000-000000000001",
@@ -85,6 +95,7 @@ if (e2eNamespace) {
     workQualityCredentials,
     fieldCredentials,
     siteManagerCredentials,
+    areaBConfirmerCredentials,
   ]) {
     credentials.email = credentials.email.replace(
       "@",
@@ -272,7 +283,12 @@ async function ensureTask020Fixture(adminClient, fieldUserId) {
     throw new Error("Не удалось назначить Area работам TASK-020.");
 }
 
-async function ensureTask021Fixture(adminClient, siteManagerUserId) {
+async function ensureTask021Fixture(
+  adminClient,
+  siteManagerUserId,
+  areaId = ids.areaA,
+  fallbackMemberId = ids.siteManagerProjectMember,
+) {
   const { data: member, error: memberError } = await adminClient
     .from("project_members")
     .select("id")
@@ -281,7 +297,7 @@ async function ensureTask021Fixture(adminClient, siteManagerUserId) {
     .maybeSingle();
   if (memberError) throw new Error("Не удалось проверить начальника участка.");
 
-  const projectMemberId = member?.id ?? ids.siteManagerProjectMember;
+  const projectMemberId = member?.id ?? fallbackMemberId;
   if (!member) {
     await insertOne(adminClient, "project_members", {
       id: projectMemberId,
@@ -316,7 +332,7 @@ async function ensureTask021Fixture(adminClient, siteManagerUserId) {
     .select("id")
     .eq("project_id", ids.project)
     .eq("project_member_id", projectMemberId)
-    .eq("project_area_id", ids.areaA)
+    .eq("project_area_id", areaId)
     .is("removed_at", null)
     .maybeSingle();
   if (areaMembershipError)
@@ -325,7 +341,7 @@ async function ensureTask021Fixture(adminClient, siteManagerUserId) {
     await insertOne(adminClient, "project_member_areas", {
       project_id: ids.project,
       project_member_id: projectMemberId,
-      project_area_id: ids.areaA,
+      project_area_id: areaId,
       assigned_by: siteManagerUserId,
     });
   }
@@ -568,6 +584,49 @@ async function main() {
 
   await ensureTask020Fixture(adminClient, fieldUserId);
   await ensureTask021Fixture(adminClient, siteManagerUserId);
+  const areaBConfirmerUserId = await findOrCreateDemoUser(
+    adminClient,
+    areaBConfirmerCredentials,
+  );
+  await ensureTask021Fixture(
+    adminClient,
+    areaBConfirmerUserId,
+    ids.areaB,
+    ids.areaBConfirmerProjectMember,
+  );
+  const { error: dailyWorkError } = await adminClient.from("works").upsert(
+    {
+      id: ids.dailyReportWork,
+      project_id: ids.project,
+      project_area_id: ids.areaA,
+      code: "WORK-022-A2",
+      title: "Бетонирование участка зоны A",
+      status: "READY",
+      planned_quantity: 50,
+      unit: "м³",
+      created_by: fieldUserId,
+    },
+    { onConflict: "id", ignoreDuplicates: true },
+  );
+  if (dailyWorkError)
+    throw new Error("Не удалось подготовить вторую работу DailyReport.");
+
+  const { error: qualityWorkError } = await adminClient.from("works").upsert(
+    {
+      id: ids.qualityWork,
+      project_id: ids.project,
+      project_area_id: ids.areaA,
+      code: "WORK-024-QUALITY",
+      title: "Работа для положительной проверки качества",
+      status: "READY_FOR_INSPECTION",
+      planned_quantity: 12,
+      unit: "м³",
+      created_by: workCreatorUserId,
+    },
+    { onConflict: "id", ignoreDuplicates: true },
+  );
+  if (qualityWorkError)
+    throw new Error("Не удалось подготовить Work для контроля качества.");
 
   // Add TASK-018 fixtures to an existing local demo without resetting history.
   const { data: qualityMember, error: qualityMemberError } = await adminClient
@@ -628,6 +687,43 @@ async function main() {
     );
     if (error) throw new Error("Не удалось создать lifecycle demo Work.");
   }
+  const { error: lifecycleAreaError } = await adminClient
+    .from("works")
+    .update({ project_area_id: ids.areaA })
+    .eq("project_id", ids.project)
+    .eq("id", ids.lifecycleWork);
+  if (lifecycleAreaError)
+    throw new Error("Не удалось назначить Area lifecycle Work.");
+  for (const assignment of [
+    {
+      id: ids.lifecycleWorkAssignment,
+      project_id: ids.project,
+      work_id: ids.lifecycleWork,
+      project_member_id: ids.workCreatorProjectMember,
+      assigned_by: workCreatorUserId,
+    },
+  ]) {
+    const { error } = await adminClient
+      .from("work_assignments")
+      .upsert(assignment, { onConflict: "id", ignoreDuplicates: true });
+    if (error)
+      throw new Error("Не удалось назначить ответственного lifecycle Work.");
+  }
+  for (const link of [
+    {
+      id: ids.lifecycleDocumentWorkLink,
+      project_id: ids.project,
+      technical_document_id: ids.technicalDocument,
+      work_id: ids.lifecycleWork,
+      created_by: userId,
+    },
+  ]) {
+    const { error } = await adminClient
+      .from("document_work_links")
+      .upsert(link, { onConflict: "id", ignoreDuplicates: true });
+    if (error)
+      throw new Error("Не удалось связать readiness Work с документом.");
+  }
 
   const loginClient = createClient(url, publishableKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -664,9 +760,12 @@ async function main() {
     .from("notifications")
     .select("read_at")
     .eq("project_id", ids.project)
-    .single();
-  if (notificationError) {
-    throw new Error(`Demo Notification не создан: ${notificationError.code}`);
+    .limit(1)
+    .maybeSingle();
+  if (notificationError || !notification) {
+    throw new Error(
+      `Demo Notification не создан: ${notificationError?.code ?? "NOT_FOUND"}`,
+    );
   }
   const { count: acknowledgementCount, error: acknowledgementError } =
     await adminClient
@@ -688,6 +787,7 @@ async function main() {
         quality: workQualityCredentials,
         field: fieldCredentials,
         siteManager: siteManagerCredentials,
+        areaBConfirmer: areaBConfirmerCredentials,
       }),
     );
     return;

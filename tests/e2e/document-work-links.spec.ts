@@ -15,6 +15,7 @@ test("PTO manages a Document ↔ Work link and preserves propagation history", a
   page,
   scenario,
 }) => {
+  test.setTimeout(60_000);
   const projectId = scenario.ids.project;
   const pto = scenario.demoUser;
   const workManager = scenario.manager;

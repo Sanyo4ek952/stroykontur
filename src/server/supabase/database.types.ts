@@ -169,8 +169,12 @@ export type Database = {
           assignment_change_id: string | null;
           assignment_reason: string | null;
           created_at: string;
+          daily_report_command_id: string | null;
+          daily_report_id: string | null;
           from_project_member_id: string | null;
           id: string;
+          inspection_id: string | null;
+          inspection_request_id: string | null;
           lifecycle_transition_id: string | null;
           occurred_at: string;
           progress_change_id: string | null;
@@ -179,9 +183,12 @@ export type Database = {
           project_area_id: string | null;
           project_id: string;
           project_member_area_id: string | null;
+          quality_inspection_command_id: string | null;
           subject_id: string;
           subject_type: string;
           to_project_member_id: string | null;
+          work_blocker_command_id: string | null;
+          work_blocker_id: string | null;
           work_progress_entry_id: string | null;
         };
         Insert: {
@@ -193,8 +200,12 @@ export type Database = {
           assignment_change_id?: string | null;
           assignment_reason?: string | null;
           created_at?: string;
+          daily_report_command_id?: string | null;
+          daily_report_id?: string | null;
           from_project_member_id?: string | null;
           id?: string;
+          inspection_id?: string | null;
+          inspection_request_id?: string | null;
           lifecycle_transition_id?: string | null;
           occurred_at?: string;
           progress_change_id?: string | null;
@@ -203,9 +214,12 @@ export type Database = {
           project_area_id?: string | null;
           project_id: string;
           project_member_area_id?: string | null;
+          quality_inspection_command_id?: string | null;
           subject_id: string;
           subject_type: string;
           to_project_member_id?: string | null;
+          work_blocker_command_id?: string | null;
+          work_blocker_id?: string | null;
           work_progress_entry_id?: string | null;
         };
         Update: {
@@ -217,8 +231,12 @@ export type Database = {
           assignment_change_id?: string | null;
           assignment_reason?: string | null;
           created_at?: string;
+          daily_report_command_id?: string | null;
+          daily_report_id?: string | null;
           from_project_member_id?: string | null;
           id?: string;
+          inspection_id?: string | null;
+          inspection_request_id?: string | null;
           lifecycle_transition_id?: string | null;
           occurred_at?: string;
           progress_change_id?: string | null;
@@ -227,9 +245,12 @@ export type Database = {
           project_area_id?: string | null;
           project_id?: string;
           project_member_area_id?: string | null;
+          quality_inspection_command_id?: string | null;
           subject_id?: string;
           subject_type?: string;
           to_project_member_id?: string | null;
+          work_blocker_command_id?: string | null;
+          work_blocker_id?: string | null;
           work_progress_entry_id?: string | null;
         };
         Relationships: [
@@ -269,6 +290,20 @@ export type Database = {
             referencedColumns: ["project_id", "command_id"];
           },
           {
+            foreignKeyName: "audit_entries_project_id_daily_report_command_id_fkey";
+            columns: ["project_id", "daily_report_command_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_report_commands";
+            referencedColumns: ["project_id", "command_id"];
+          },
+          {
+            foreignKeyName: "audit_entries_project_id_daily_report_id_fkey";
+            columns: ["project_id", "daily_report_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_reports";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
             foreignKeyName: "audit_entries_project_id_fkey";
             columns: ["project_id"];
             isOneToOne: false;
@@ -297,6 +332,20 @@ export type Database = {
             referencedColumns: ["project_id", "id"];
           },
           {
+            foreignKeyName: "audit_entries_project_id_inspection_id_fkey";
+            columns: ["project_id", "inspection_id"];
+            isOneToOne: false;
+            referencedRelation: "inspections";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "audit_entries_project_id_inspection_request_id_fkey";
+            columns: ["project_id", "inspection_request_id"];
+            isOneToOne: false;
+            referencedRelation: "inspection_requests";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
             foreignKeyName: "audit_entries_project_id_progress_change_id_fkey";
             columns: ["project_id", "progress_change_id"];
             isOneToOne: false;
@@ -316,6 +365,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "project_member_areas";
             referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "audit_entries_project_id_quality_inspection_command_id_fkey";
+            columns: ["project_id", "quality_inspection_command_id"];
+            isOneToOne: false;
+            referencedRelation: "quality_inspection_commands";
+            referencedColumns: ["project_id", "command_id"];
           },
           {
             foreignKeyName: "audit_entries_project_id_to_project_member_id_fkey";
@@ -339,10 +395,282 @@ export type Database = {
             referencedColumns: ["project_id", "id"];
           },
           {
+            foreignKeyName: "audit_entries_project_id_work_blocker_command_id_fkey";
+            columns: ["project_id", "work_blocker_command_id"];
+            isOneToOne: false;
+            referencedRelation: "work_blocker_commands";
+            referencedColumns: ["project_id", "command_id"];
+          },
+          {
+            foreignKeyName: "audit_entries_project_id_work_blocker_id_fkey";
+            columns: ["project_id", "work_blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "work_blockers";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
             foreignKeyName: "audit_entries_project_id_work_progress_entry_id_fkey";
             columns: ["project_id", "work_progress_entry_id"];
             isOneToOne: false;
             referencedRelation: "work_progress_entries";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      daily_report_commands: {
+        Row: {
+          actor_project_member_id: string;
+          actor_user_id: string;
+          command_id: string;
+          daily_report_id: string;
+          occurred_at: string;
+          operation: string;
+          payload: Json;
+          project_area_id: string;
+          project_id: string;
+          transaction_id: unknown;
+        };
+        Insert: {
+          actor_project_member_id: string;
+          actor_user_id: string;
+          command_id: string;
+          daily_report_id: string;
+          occurred_at?: string;
+          operation: string;
+          payload: Json;
+          project_area_id: string;
+          project_id: string;
+          transaction_id?: unknown;
+        };
+        Update: {
+          actor_project_member_id?: string;
+          actor_user_id?: string;
+          command_id?: string;
+          daily_report_id?: string;
+          occurred_at?: string;
+          operation?: string;
+          payload?: Json;
+          project_area_id?: string;
+          project_id?: string;
+          transaction_id?: unknown;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_report_commands_project_id_actor_project_member_id_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_report_commands_project_id_actor_project_member_id_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_report_commands_project_id_actor_project_member_id_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_report_commands_project_id_daily_report_id_fkey";
+            columns: ["project_id", "daily_report_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_reports";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_report_commands_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "daily_report_commands_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_report_commands_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "project_areas";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      daily_reports: {
+        Row: {
+          confirmed_at: string | null;
+          confirmed_by_project_member_id: string | null;
+          created_at: string;
+          id: string;
+          prepared_by_project_member_id: string;
+          problems: string | null;
+          project_area_id: string;
+          project_id: string;
+          report_date: string;
+          return_reason: string | null;
+          returned_at: string | null;
+          returned_by_project_member_id: string | null;
+          status: string;
+          submitted_at: string | null;
+          submitted_by_project_member_id: string | null;
+          summary: string | null;
+          updated_at: string;
+          workers_count: number;
+        };
+        Insert: {
+          confirmed_at?: string | null;
+          confirmed_by_project_member_id?: string | null;
+          created_at?: string;
+          id?: string;
+          prepared_by_project_member_id: string;
+          problems?: string | null;
+          project_area_id: string;
+          project_id: string;
+          report_date: string;
+          return_reason?: string | null;
+          returned_at?: string | null;
+          returned_by_project_member_id?: string | null;
+          status?: string;
+          submitted_at?: string | null;
+          submitted_by_project_member_id?: string | null;
+          summary?: string | null;
+          updated_at?: string;
+          workers_count: number;
+        };
+        Update: {
+          confirmed_at?: string | null;
+          confirmed_by_project_member_id?: string | null;
+          created_at?: string;
+          id?: string;
+          prepared_by_project_member_id?: string;
+          problems?: string | null;
+          project_area_id?: string;
+          project_id?: string;
+          report_date?: string;
+          return_reason?: string | null;
+          returned_at?: string | null;
+          returned_by_project_member_id?: string | null;
+          status?: string;
+          submitted_at?: string | null;
+          submitted_by_project_member_id?: string | null;
+          summary?: string | null;
+          updated_at?: string;
+          workers_count?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "daily_reports_project_id_confirmed_by_project_member_id_fkey";
+            columns: ["project_id", "confirmed_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_confirmed_by_project_member_id_fkey";
+            columns: ["project_id", "confirmed_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_confirmed_by_project_member_id_fkey";
+            columns: ["project_id", "confirmed_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_prepared_by_project_member_id_fkey";
+            columns: ["project_id", "prepared_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_prepared_by_project_member_id_fkey";
+            columns: ["project_id", "prepared_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_prepared_by_project_member_id_fkey";
+            columns: ["project_id", "prepared_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "project_areas";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_returned_by_project_member_id_fkey";
+            columns: ["project_id", "returned_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_returned_by_project_member_id_fkey";
+            columns: ["project_id", "returned_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_returned_by_project_member_id_fkey";
+            columns: ["project_id", "returned_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_submitted_by_project_member_id_fkey";
+            columns: ["project_id", "submitted_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_submitted_by_project_member_id_fkey";
+            columns: ["project_id", "submitted_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "daily_reports_project_id_submitted_by_project_member_id_fkey";
+            columns: ["project_id", "submitted_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
             referencedColumns: ["project_id", "id"];
           },
         ];
@@ -597,10 +925,14 @@ export type Database = {
           area_reason: string | null;
           assignment_change_id: string | null;
           created_at: string;
+          daily_report_command_id: string | null;
+          daily_report_id: string | null;
           event_type: string;
           from_project_member_id: string | null;
           from_status: string | null;
           id: string;
+          inspection_id: string | null;
+          inspection_request_id: string | null;
           lifecycle_transition_id: string | null;
           occurred_at: string;
           progress_change_id: string | null;
@@ -609,10 +941,13 @@ export type Database = {
           project_area_id: string | null;
           project_id: string;
           project_member_area_id: string | null;
+          quality_inspection_command_id: string | null;
           subject_id: string;
           subject_type: string;
           to_project_member_id: string | null;
           to_status: string | null;
+          work_blocker_command_id: string | null;
+          work_blocker_id: string | null;
           work_progress_entry_id: string | null;
         };
         Insert: {
@@ -621,10 +956,14 @@ export type Database = {
           area_reason?: string | null;
           assignment_change_id?: string | null;
           created_at?: string;
+          daily_report_command_id?: string | null;
+          daily_report_id?: string | null;
           event_type: string;
           from_project_member_id?: string | null;
           from_status?: string | null;
           id?: string;
+          inspection_id?: string | null;
+          inspection_request_id?: string | null;
           lifecycle_transition_id?: string | null;
           occurred_at?: string;
           progress_change_id?: string | null;
@@ -633,10 +972,13 @@ export type Database = {
           project_area_id?: string | null;
           project_id: string;
           project_member_area_id?: string | null;
+          quality_inspection_command_id?: string | null;
           subject_id: string;
           subject_type: string;
           to_project_member_id?: string | null;
           to_status?: string | null;
+          work_blocker_command_id?: string | null;
+          work_blocker_id?: string | null;
           work_progress_entry_id?: string | null;
         };
         Update: {
@@ -645,10 +987,14 @@ export type Database = {
           area_reason?: string | null;
           assignment_change_id?: string | null;
           created_at?: string;
+          daily_report_command_id?: string | null;
+          daily_report_id?: string | null;
           event_type?: string;
           from_project_member_id?: string | null;
           from_status?: string | null;
           id?: string;
+          inspection_id?: string | null;
+          inspection_request_id?: string | null;
           lifecycle_transition_id?: string | null;
           occurred_at?: string;
           progress_change_id?: string | null;
@@ -657,10 +1003,13 @@ export type Database = {
           project_area_id?: string | null;
           project_id?: string;
           project_member_area_id?: string | null;
+          quality_inspection_command_id?: string | null;
           subject_id?: string;
           subject_type?: string;
           to_project_member_id?: string | null;
           to_status?: string | null;
+          work_blocker_command_id?: string | null;
+          work_blocker_id?: string | null;
           work_progress_entry_id?: string | null;
         };
         Relationships: [
@@ -677,6 +1026,20 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "work_assignment_changes";
             referencedColumns: ["project_id", "command_id"];
+          },
+          {
+            foreignKeyName: "events_project_id_daily_report_command_id_fkey";
+            columns: ["project_id", "daily_report_command_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_report_commands";
+            referencedColumns: ["project_id", "command_id"];
+          },
+          {
+            foreignKeyName: "events_project_id_daily_report_id_fkey";
+            columns: ["project_id", "daily_report_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_reports";
+            referencedColumns: ["project_id", "id"];
           },
           {
             foreignKeyName: "events_project_id_fkey";
@@ -707,6 +1070,20 @@ export type Database = {
             referencedColumns: ["project_id", "id"];
           },
           {
+            foreignKeyName: "events_project_id_inspection_id_fkey";
+            columns: ["project_id", "inspection_id"];
+            isOneToOne: false;
+            referencedRelation: "inspections";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "events_project_id_inspection_request_id_fkey";
+            columns: ["project_id", "inspection_request_id"];
+            isOneToOne: false;
+            referencedRelation: "inspection_requests";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
             foreignKeyName: "events_project_id_progress_change_id_fkey";
             columns: ["project_id", "progress_change_id"];
             isOneToOne: false;
@@ -726,6 +1103,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "project_member_areas";
             referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "events_project_id_quality_inspection_command_id_fkey";
+            columns: ["project_id", "quality_inspection_command_id"];
+            isOneToOne: false;
+            referencedRelation: "quality_inspection_commands";
+            referencedColumns: ["project_id", "command_id"];
           },
           {
             foreignKeyName: "events_project_id_to_project_member_id_fkey";
@@ -749,10 +1133,252 @@ export type Database = {
             referencedColumns: ["project_id", "id"];
           },
           {
+            foreignKeyName: "events_project_id_work_blocker_command_id_fkey";
+            columns: ["project_id", "work_blocker_command_id"];
+            isOneToOne: false;
+            referencedRelation: "work_blocker_commands";
+            referencedColumns: ["project_id", "command_id"];
+          },
+          {
+            foreignKeyName: "events_project_id_work_blocker_id_fkey";
+            columns: ["project_id", "work_blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "work_blockers";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
             foreignKeyName: "events_project_id_work_progress_entry_id_fkey";
             columns: ["project_id", "work_progress_entry_id"];
             isOneToOne: false;
             referencedRelation: "work_progress_entries";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      inspection_requests: {
+        Row: {
+          created_at: string;
+          id: string;
+          project_area_id: string;
+          project_id: string;
+          requested_at: string;
+          requested_by_project_member_id: string;
+          scheduled_at: string | null;
+          scheduled_by_project_member_id: string | null;
+          status: string;
+          updated_at: string;
+          work_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          project_area_id: string;
+          project_id: string;
+          requested_at?: string;
+          requested_by_project_member_id: string;
+          scheduled_at?: string | null;
+          scheduled_by_project_member_id?: string | null;
+          status?: string;
+          updated_at?: string;
+          work_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          project_area_id?: string;
+          project_id?: string;
+          requested_at?: string;
+          requested_by_project_member_id?: string;
+          scheduled_at?: string | null;
+          scheduled_by_project_member_id?: string | null;
+          status?: string;
+          updated_at?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "inspection_requests_area_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_area_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "project_areas";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_project_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_requested_by_fkey";
+            columns: ["project_id", "requested_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_requested_by_fkey";
+            columns: ["project_id", "requested_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_requested_by_fkey";
+            columns: ["project_id", "requested_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_scheduled_by_fkey";
+            columns: ["project_id", "scheduled_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_scheduled_by_fkey";
+            columns: ["project_id", "scheduled_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_scheduled_by_fkey";
+            columns: ["project_id", "scheduled_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspection_requests_work_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      inspections: {
+        Row: {
+          accepted_at: string | null;
+          created_at: string;
+          id: string;
+          inspection_request_id: string;
+          inspector_project_member_id: string;
+          project_area_id: string;
+          project_id: string;
+          result_note: string | null;
+          scheduled_at: string;
+          started_at: string | null;
+          status: string;
+          updated_at: string;
+          work_id: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          created_at?: string;
+          id?: string;
+          inspection_request_id: string;
+          inspector_project_member_id: string;
+          project_area_id: string;
+          project_id: string;
+          result_note?: string | null;
+          scheduled_at?: string;
+          started_at?: string | null;
+          status?: string;
+          updated_at?: string;
+          work_id: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          created_at?: string;
+          id?: string;
+          inspection_request_id?: string;
+          inspector_project_member_id?: string;
+          project_area_id?: string;
+          project_id?: string;
+          result_note?: string | null;
+          scheduled_at?: string;
+          started_at?: string | null;
+          status?: string;
+          updated_at?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "inspections_area_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspections_area_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "project_areas";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspections_inspector_fkey";
+            columns: ["project_id", "inspector_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspections_inspector_fkey";
+            columns: ["project_id", "inspector_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspections_inspector_fkey";
+            columns: ["project_id", "inspector_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "inspections_project_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inspections_request_context_fkey";
+            columns: [
+              "project_id",
+              "inspection_request_id",
+              "work_id",
+              "project_area_id",
+            ];
+            isOneToOne: false;
+            referencedRelation: "inspection_requests";
+            referencedColumns: [
+              "project_id",
+              "id",
+              "work_id",
+              "project_area_id",
+            ];
+          },
+          {
+            foreignKeyName: "inspections_work_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
             referencedColumns: ["project_id", "id"];
           },
         ];
@@ -962,6 +1588,13 @@ export type Database = {
             foreignKeyName: "project_area_changes_project_id_project_area_id_fkey";
             columns: ["project_id", "project_area_id"];
             isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "project_area_changes_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
             referencedRelation: "project_areas";
             referencedColumns: ["project_id", "id"];
           },
@@ -1074,6 +1707,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "projects";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "project_member_areas_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
           },
           {
             foreignKeyName: "project_member_areas_project_id_project_area_id_fkey";
@@ -1296,6 +1936,112 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      quality_inspection_commands: {
+        Row: {
+          actor_project_member_id: string;
+          actor_user_id: string;
+          command_id: string;
+          created_at: string;
+          inspection_id: string | null;
+          inspection_request_id: string;
+          operation: string;
+          payload: Json;
+          project_area_id: string;
+          project_id: string;
+          work_id: string;
+        };
+        Insert: {
+          actor_project_member_id: string;
+          actor_user_id: string;
+          command_id: string;
+          created_at?: string;
+          inspection_id?: string | null;
+          inspection_request_id: string;
+          operation: string;
+          payload: Json;
+          project_area_id: string;
+          project_id: string;
+          work_id: string;
+        };
+        Update: {
+          actor_project_member_id?: string;
+          actor_user_id?: string;
+          command_id?: string;
+          created_at?: string;
+          inspection_id?: string | null;
+          inspection_request_id?: string;
+          operation?: string;
+          payload?: Json;
+          project_area_id?: string;
+          project_id?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quality_inspection_commands_actor_member_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "quality_inspection_commands_actor_member_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "quality_inspection_commands_actor_member_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "quality_inspection_commands_area_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "quality_inspection_commands_area_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
+            referencedRelation: "project_areas";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "quality_inspection_commands_inspection_fkey";
+            columns: ["project_id", "inspection_id"];
+            isOneToOne: false;
+            referencedRelation: "inspections";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "quality_inspection_commands_project_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quality_inspection_commands_request_fkey";
+            columns: ["project_id", "inspection_request_id"];
+            isOneToOne: false;
+            referencedRelation: "inspection_requests";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "quality_inspection_commands_work_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
       };
       role_permissions: {
         Row: {
@@ -1734,6 +2480,195 @@ export type Database = {
           },
         ];
       };
+      work_blocker_commands: {
+        Row: {
+          actor_project_member_id: string;
+          actor_user_id: string;
+          category: string | null;
+          command_id: string;
+          description: string | null;
+          occurred_at: string;
+          operation: string;
+          project_id: string;
+          resolution_note: string | null;
+          title: string | null;
+          work_blocker_id: string;
+          work_id: string;
+        };
+        Insert: {
+          actor_project_member_id: string;
+          actor_user_id: string;
+          category?: string | null;
+          command_id: string;
+          description?: string | null;
+          occurred_at?: string;
+          operation: string;
+          project_id: string;
+          resolution_note?: string | null;
+          title?: string | null;
+          work_blocker_id: string;
+          work_id: string;
+        };
+        Update: {
+          actor_project_member_id?: string;
+          actor_user_id?: string;
+          category?: string | null;
+          command_id?: string;
+          description?: string | null;
+          occurred_at?: string;
+          operation?: string;
+          project_id?: string;
+          resolution_note?: string | null;
+          title?: string | null;
+          work_blocker_id?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_blocker_commands_actor_member_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blocker_commands_actor_member_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blocker_commands_actor_member_fkey";
+            columns: ["project_id", "actor_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blocker_commands_blocker_fkey";
+            columns: ["project_id", "work_blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "work_blockers";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blocker_commands_work_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
+      work_blockers: {
+        Row: {
+          category: string;
+          created_at: string;
+          description: string;
+          id: string;
+          opened_at: string;
+          opened_by_project_member_id: string;
+          project_id: string;
+          resolution_note: string | null;
+          resolved_at: string | null;
+          resolved_by_project_member_id: string | null;
+          status: string;
+          title: string;
+          updated_at: string;
+          work_id: string;
+        };
+        Insert: {
+          category: string;
+          created_at?: string;
+          description: string;
+          id?: string;
+          opened_at?: string;
+          opened_by_project_member_id: string;
+          project_id: string;
+          resolution_note?: string | null;
+          resolved_at?: string | null;
+          resolved_by_project_member_id?: string | null;
+          status?: string;
+          title: string;
+          updated_at?: string;
+          work_id: string;
+        };
+        Update: {
+          category?: string;
+          created_at?: string;
+          description?: string;
+          id?: string;
+          opened_at?: string;
+          opened_by_project_member_id?: string;
+          project_id?: string;
+          resolution_note?: string | null;
+          resolved_at?: string | null;
+          resolved_by_project_member_id?: string | null;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+          work_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_blockers_opened_by_fkey";
+            columns: ["project_id", "opened_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blockers_opened_by_fkey";
+            columns: ["project_id", "opened_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blockers_opened_by_fkey";
+            columns: ["project_id", "opened_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blockers_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "work_blockers_resolved_by_fkey";
+            columns: ["project_id", "resolved_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_area_member_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blockers_resolved_by_fkey";
+            columns: ["project_id", "resolved_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "project_members";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blockers_resolved_by_fkey";
+            columns: ["project_id", "resolved_by_project_member_id"];
+            isOneToOne: false;
+            referencedRelation: "work_assignment_candidates";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_blockers_work_fkey";
+            columns: ["project_id", "work_id"];
+            isOneToOne: false;
+            referencedRelation: "works";
+            referencedColumns: ["project_id", "id"];
+          },
+        ];
+      };
       work_dependencies: {
         Row: {
           created_at: string;
@@ -1855,6 +2790,13 @@ export type Database = {
             foreignKeyName: "work_progress_changes_project_id_project_area_id_fkey";
             columns: ["project_id", "project_area_id"];
             isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_progress_changes_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
             referencedRelation: "project_areas";
             referencedColumns: ["project_id", "id"];
           },
@@ -1944,6 +2886,13 @@ export type Database = {
             foreignKeyName: "work_progress_decisions_project_id_project_area_id_fkey";
             columns: ["project_id", "project_area_id"];
             isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "work_progress_decisions_project_id_project_area_id_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
             referencedRelation: "project_areas";
             referencedColumns: ["project_id", "id"];
           },
@@ -1970,6 +2919,7 @@ export type Database = {
           confirmed_by: string | null;
           created_at: string;
           created_by: string;
+          daily_report_id: string | null;
           id: string;
           note: string | null;
           project_id: string;
@@ -1986,6 +2936,7 @@ export type Database = {
           confirmed_by?: string | null;
           created_at?: string;
           created_by: string;
+          daily_report_id?: string | null;
           id?: string;
           note?: string | null;
           project_id: string;
@@ -2002,6 +2953,7 @@ export type Database = {
           confirmed_by?: string | null;
           created_at?: string;
           created_by?: string;
+          daily_report_id?: string | null;
           id?: string;
           note?: string | null;
           project_id?: string;
@@ -2013,6 +2965,13 @@ export type Database = {
           work_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "work_progress_entries_project_id_daily_report_id_fkey";
+            columns: ["project_id", "daily_report_id"];
+            isOneToOne: false;
+            referencedRelation: "daily_reports";
+            referencedColumns: ["project_id", "id"];
+          },
           {
             foreignKeyName: "work_progress_entries_project_id_fkey";
             columns: ["project_id"];
@@ -2083,6 +3042,13 @@ export type Database = {
             foreignKeyName: "works_project_area_fkey";
             columns: ["project_id", "project_area_id"];
             isOneToOne: false;
+            referencedRelation: "daily_report_area_capabilities";
+            referencedColumns: ["project_id", "id"];
+          },
+          {
+            foreignKeyName: "works_project_area_fkey";
+            columns: ["project_id", "project_area_id"];
+            isOneToOne: false;
             referencedRelation: "project_areas";
             referencedColumns: ["project_id", "id"];
           },
@@ -2097,6 +3063,41 @@ export type Database = {
       };
     };
     Views: {
+      daily_report_area_capabilities: {
+        Row: {
+          can_confirm: boolean | null;
+          can_report: boolean | null;
+          code: string | null;
+          id: string | null;
+          name: string | null;
+          project_id: string | null;
+        };
+        Insert: {
+          can_confirm?: never;
+          can_report?: never;
+          code?: string | null;
+          id?: string | null;
+          name?: string | null;
+          project_id?: string | null;
+        };
+        Update: {
+          can_confirm?: never;
+          can_report?: never;
+          code?: string | null;
+          id?: string | null;
+          name?: string | null;
+          project_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_areas_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       project_area_member_candidates: {
         Row: {
           id: string | null;
@@ -2133,8 +3134,26 @@ export type Database = {
         Args: { p_project_id: string; p_work_id: string };
         Returns: string;
       };
+      accept_work_inspection: {
+        Args: {
+          p_command_id: string;
+          p_inspection_id: string;
+          p_result_note: string;
+        };
+        Returns: string;
+      };
       acknowledge_own_document_impact: {
         Args: { notification_id: string };
+        Returns: string;
+      };
+      add_daily_report_progress: {
+        Args: {
+          p_command_id: string;
+          p_daily_report_id: string;
+          p_note: string;
+          p_quantity: number;
+          p_work_id: string;
+        };
         Returns: string;
       };
       assign_project_member_area: {
@@ -2163,8 +3182,23 @@ export type Database = {
         Args: { p_project_id: string; p_work_id: string };
         Returns: string;
       };
+      confirm_daily_report: {
+        Args: { p_command_id: string; p_daily_report_id: string };
+        Returns: string;
+      };
       confirm_work_progress: {
         Args: { p_command_id: string; p_work_progress_entry_id: string };
+        Returns: string;
+      };
+      create_daily_report: {
+        Args: {
+          p_command_id: string;
+          p_problems: string;
+          p_project_area_id: string;
+          p_report_date: string;
+          p_summary: string;
+          p_workers_count: number;
+        };
         Returns: string;
       };
       create_project_area: {
@@ -2210,6 +3244,7 @@ export type Database = {
           occurred_at: string;
         }[];
       };
+      get_work_readiness: { Args: { p_work_id: string }; Returns: Json };
       issue_document_revision_for_work: {
         Args: {
           p_document_revision_id: string;
@@ -2228,6 +3263,16 @@ export type Database = {
       };
       mark_work_ready_for_inspection: {
         Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
+      open_work_blocker: {
+        Args: {
+          p_category: string;
+          p_command_id: string;
+          p_description: string;
+          p_title: string;
+          p_work_id: string;
+        };
         Returns: string;
       };
       reassign_work: {
@@ -2258,12 +3303,32 @@ export type Database = {
         };
         Returns: string;
       };
+      request_work_inspection: {
+        Args: { p_command_id: string; p_work_id: string };
+        Returns: string;
+      };
       require_work_rework: {
         Args: { p_project_id: string; p_work_id: string };
         Returns: string;
       };
+      resolve_work_blocker: {
+        Args: {
+          p_command_id: string;
+          p_resolution_note: string;
+          p_work_blocker_id: string;
+        };
+        Returns: string;
+      };
       resume_blocked_work: {
         Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
+      return_daily_report: {
+        Args: {
+          p_command_id: string;
+          p_daily_report_id: string;
+          p_return_reason: string;
+        };
         Returns: string;
       };
       return_work_progress: {
@@ -2274,8 +3339,30 @@ export type Database = {
         };
         Returns: string;
       };
+      schedule_work_inspection: {
+        Args: { p_command_id: string; p_inspection_request_id: string };
+        Returns: string;
+      };
       start_work: {
         Args: { p_project_id: string; p_work_id: string };
+        Returns: string;
+      };
+      start_work_inspection: {
+        Args: { p_command_id: string; p_inspection_id: string };
+        Returns: string;
+      };
+      submit_daily_report: {
+        Args: { p_command_id: string; p_daily_report_id: string };
+        Returns: string;
+      };
+      update_daily_report_draft: {
+        Args: {
+          p_command_id: string;
+          p_daily_report_id: string;
+          p_problems: string;
+          p_summary: string;
+          p_workers_count: number;
+        };
         Returns: string;
       };
       update_project_area: {

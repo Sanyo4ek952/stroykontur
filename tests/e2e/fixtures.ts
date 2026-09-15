@@ -16,12 +16,15 @@ type Scenario = {
     reworkWork: string;
     areaA: string;
     areaB: string;
+    dailyReportWork: string;
+    qualityWork: string;
   };
   demoUser: Credentials;
   manager: Credentials;
   quality: Credentials;
   field: Credentials;
   siteManager: Credentials;
+  areaBConfirmer: Credentials;
 };
 
 export const test = base.extend<{ scenario: Scenario }>({

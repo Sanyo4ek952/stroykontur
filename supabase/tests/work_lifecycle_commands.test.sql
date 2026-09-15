@@ -29,6 +29,48 @@ from (values (1,'construction_director'), (2,'construction_control_engineer'),
   (3,'pto'), (5,'construction_director'), (6,'pto')) x(i,code)
 join public.roles r on r.code=x.code;
 
+insert into public.project_areas(id,project_id,code,name,created_by) values
+('40180000-0000-0000-0000-000000000001','10180000-0000-0000-0000-000000000001','READY','Ready area','a0180000-0000-0000-0000-000000000001');
+insert into public.technical_documents(id,project_id,code,title,created_by) values
+('50180000-0000-0000-0000-000000000099','10180000-0000-0000-0000-000000000001','DOC018-READY','Lifecycle readiness','a0180000-0000-0000-0000-000000000001');
+insert into public.document_revisions(id,project_id,technical_document_id,revision_code,status,created_by) values
+('60180000-0000-0000-0000-000000000099','10180000-0000-0000-0000-000000000001','50180000-0000-0000-0000-000000000099','R1','approved','a0180000-0000-0000-0000-000000000001');
+insert into public.document_issues_for_work(project_id,technical_document_id,document_revision_id,issued_by) values
+('10180000-0000-0000-0000-000000000001','50180000-0000-0000-0000-000000000099','60180000-0000-0000-0000-000000000099','a0180000-0000-0000-0000-000000000001');
+
+create function pg_temp.add_readiness(wid uuid, actor uuid, member_id uuid) returns void language plpgsql as $$
+begin
+  update public.works set project_area_id='40180000-0000-0000-0000-000000000001' where id=wid;
+  insert into public.work_assignments(project_id,work_id,project_member_id,assigned_by)
+  values('10180000-0000-0000-0000-000000000001',wid,member_id,actor);
+  insert into public.document_work_links(project_id,technical_document_id,work_id,created_by)
+  values('10180000-0000-0000-0000-000000000001','50180000-0000-0000-0000-000000000099',wid,actor);
+end;
+$$;
+
+create function pg_temp.add_quality_inspection(wid uuid, member_id uuid) returns void language plpgsql as $$
+declare request_id uuid := gen_random_uuid();
+begin
+  insert into public.inspection_requests(
+    id,project_id,project_area_id,work_id,requested_by_project_member_id
+  ) values (
+    request_id,'10180000-0000-0000-0000-000000000001',
+    '40180000-0000-0000-0000-000000000001',wid,member_id
+  );
+  insert into public.inspections(
+    project_id,project_area_id,work_id,inspection_request_id,inspector_project_member_id
+  ) values (
+    '10180000-0000-0000-0000-000000000001',
+    '40180000-0000-0000-0000-000000000001',wid,request_id,member_id
+  );
+  update public.inspection_requests set status='SCHEDULED',
+    scheduled_by_project_member_id=member_id,scheduled_at=now()
+  where id=request_id;
+  update public.inspections set status='IN_INSPECTION',started_at=now()
+  where inspection_request_id=request_id;
+end;
+$$;
+
 create temporary table lifecycle_cases (rpc text, source text, target text, permission text, action text, owner text);
 insert into lifecycle_cases values
 ('mark_work_ready','PLANNED','READY','work.ready','work.ready','construction_director'),
@@ -67,6 +109,14 @@ begin
     wid := gen_random_uuid();
     insert into public.works(id,project_id,code,title,status,created_by)
     values(wid,'10180000-0000-0000-0000-000000000001',c.rpc,c.rpc,c.source,actor);
+    perform pg_temp.add_readiness(wid,actor,member_id);
+    if c.rpc='accept_work' then
+      perform pg_temp.add_quality_inspection(wid,member_id);
+    end if;
+    if c.rpc='block_work' then
+      insert into public.work_blockers(project_id,work_id,category,title,description,opened_by_project_member_id)
+      values('10180000-0000-0000-0000-000000000001',wid,'TECHNICAL','Fixture blocker','Fixture blocker',member_id);
+    end if;
     call_sql := format('select public.%I(%L,%L)', c.rpc, '10180000-0000-0000-0000-000000000001', wid);
     return next ok(has_function_privilege('authenticated', 'public.'||c.rpc||'(uuid,uuid)','execute'), c.rpc||' is callable');
     return next ok(not has_function_privilege('anon', 'public.'||c.rpc||'(uuid,uuid)','execute'), c.rpc||' denies anon');
@@ -146,6 +196,8 @@ insert into public.document_revisions(id,project_id,technical_document_id,revisi
 ('60180000-0000-0000-0000-000000000001','10180000-0000-0000-0000-000000000001','50180000-0000-0000-0000-000000000001','R1','approved','a0180000-0000-0000-0000-000000000001');
 insert into public.work_assignments(project_id,work_id,project_member_id,assigned_by) values
 ('10180000-0000-0000-0000-000000000001','70180000-0000-0000-0000-000000000001','30180000-0000-0000-0000-000000000001','a0180000-0000-0000-0000-000000000001');
+update public.works set project_area_id='40180000-0000-0000-0000-000000000001'
+where id='70180000-0000-0000-0000-000000000001';
 insert into public.document_work_links(project_id,work_id,technical_document_id,created_by) values
 ('10180000-0000-0000-0000-000000000001','70180000-0000-0000-0000-000000000001','50180000-0000-0000-0000-000000000001','a0180000-0000-0000-0000-000000000001');
 insert into public.document_issues_for_work(project_id,technical_document_id,document_revision_id,issued_by) values
@@ -154,8 +206,13 @@ select set_config('request.jwt.claim.sub','a0180000-0000-0000-0000-000000000001'
 set local role authenticated;
 select throws_ok($$select public.mark_work_ready('10180000-0000-0000-0000-000000000001','70180000-0000-0000-0000-000000000002')$$,'P0002',null,'cross-Project Work id denied');
 reset role;
+create temporary table lifecycle_regression_counts as
+select
+  (select count(*) from public.tasks where project_id='10180000-0000-0000-0000-000000000001' and status='OPEN') as task_count,
+  (select count(*) from public.notifications where project_id='10180000-0000-0000-0000-000000000001' and read_at is null) as notification_count;
 create function pg_temp.happy_path() returns setof text language plpgsql as $$
 declare c record; n bigint := 0; got text;
+declare active_blocker uuid;
 begin
   for c in select * from (values
     (1,'mark_work_ready','READY',1),
@@ -169,7 +226,20 @@ begin
     (9,'close_work','CLOSED',1)
   ) x(step,rpc,target,actor) order by step loop
     perform set_config('request.jwt.claim.sub','a0180000-0000-0000-0000-'||lpad(c.actor::text,12,'0'),true);
+    if c.rpc='accept_work' then
+      perform pg_temp.add_quality_inspection(
+        '70180000-0000-0000-0000-000000000001',
+        '30180000-0000-0000-0000-000000000002'
+      );
+    end if;
     execute 'set local role authenticated';
+    if c.rpc='block_work' then
+      select public.open_work_blocker('70180000-0000-0000-0000-000000000001','TECHNICAL','Lifecycle blocker','Lifecycle blocker',gen_random_uuid()) into active_blocker;
+    elsif c.rpc='resume_blocked_work' then
+      select id into active_blocker from public.work_blockers
+      where work_id='70180000-0000-0000-0000-000000000001' and status='OPEN' order by opened_at limit 1;
+      perform public.resolve_work_blocker(active_blocker,'Resolved for lifecycle',gen_random_uuid());
+    end if;
     execute format('select public.%I(%L,%L)',c.rpc,'10180000-0000-0000-0000-000000000001','70180000-0000-0000-0000-000000000001') into got;
     return next is(got,c.target,'happy path '||c.rpc);
     execute 'reset role';
@@ -180,9 +250,9 @@ begin
 end;
 $$;
 select * from pg_temp.happy_path();
-select is((select count(*) from public.tasks where project_id='10180000-0000-0000-0000-000000000001' and status='OPEN'),1::bigint,'Work closure leaves its Task OPEN');
+select is((select count(*) from public.tasks where project_id='10180000-0000-0000-0000-000000000001' and status='OPEN'),(select task_count from lifecycle_regression_counts),'Work closure leaves Tasks OPEN');
 select is((select count(*) from public.document_impacts where work_id='70180000-0000-0000-0000-000000000001' and status='DETECTED'),1::bigint,'Work closure leaves its DocumentImpact DETECTED');
-select is((select count(*) from public.notifications where project_id='10180000-0000-0000-0000-000000000001' and read_at is null),1::bigint,'Work transitions do not acknowledge or add Notifications');
+select is((select count(*) from public.notifications where project_id='10180000-0000-0000-0000-000000000001' and read_at is null),(select notification_count from lifecycle_regression_counts),'Work transitions do not acknowledge or add Notifications');
 select is((select count(*) from public.acknowledgements where project_id='10180000-0000-0000-0000-000000000001'),0::bigint,'Work transitions do not create acknowledgements');
 
 -- Fault injection verifies transaction atomicity, rather than only SQL text.
@@ -194,6 +264,7 @@ for each row when (new.subject_type='work') execute function pg_temp.reject_life
 select set_config('request.jwt.claim.sub','a0180000-0000-0000-0000-000000000005',true);
 insert into public.works(id,project_id,code,title,created_by) values
 ('70180000-0000-0000-0000-000000000003','10180000-0000-0000-0000-000000000001','ATOMIC','Atomic','a0180000-0000-0000-0000-000000000005');
+select pg_temp.add_readiness('70180000-0000-0000-0000-000000000003','a0180000-0000-0000-0000-000000000005','30180000-0000-0000-0000-000000000005');
 set local role authenticated;
 select throws_ok($$select public.mark_work_ready('10180000-0000-0000-0000-000000000001','70180000-0000-0000-0000-000000000003')$$,'23514',null,'Event failure aborts transition');
 reset role;

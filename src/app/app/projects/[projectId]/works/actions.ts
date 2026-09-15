@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 
 import {
   postgresUuidSchema,
+  workBlockerOpenSchema,
+  workBlockerResolveSchema,
   workProgressReturnSchema,
   workProgressSchema,
   workSchema,
@@ -17,10 +19,12 @@ import {
   createWorkCommand,
   markWorkReadyCommand,
   markWorkReadyForInspectionCommand,
+  openWorkBlockerCommand,
   requireWorkReworkCommand,
   resumeBlockedWorkCommand,
   returnWorkProgressCommand,
   reportWorkProgressCommand,
+  resolveWorkBlockerCommand,
   startWorkCommand,
   WorkCommandError,
   type WorkCommandErrorCode,
@@ -54,6 +58,10 @@ export type WorkProgressDecisionActionState = {
 };
 
 const errorMessages: Record<WorkCommandErrorCode, string> = {
+  BLOCKER_STALE:
+    "Блокировка уже устранена другим пользователем. Обновите страницу.",
+  BLOCKER_UNAVAILABLE:
+    "Блокировку нельзя изменить. Проверьте состояние и повторите.",
   FORBIDDEN: "Недостаточно прав для выполнения действия.",
   INVALID_DATES: "Дата окончания не может быть раньше даты начала.",
   INVALID_QUANTITY_UNIT: "Проверьте плановый объём и единицу измерения.",
@@ -61,12 +69,100 @@ const errorMessages: Record<WorkCommandErrorCode, string> = {
     "Запись уже обработана другим пользователем. Обновите страницу.",
   PROGRESS_UNAVAILABLE:
     "Недостаточно прав для работы с прогрессом в этой зоне.",
+  READINESS_FAILED:
+    "Работа пока не готова. Устраните причины из раздела готовности.",
   PROJECT_NOT_FOUND: "Проект не найден или недоступен.",
   TRANSITION_UNAVAILABLE: "Переход из текущего состояния недоступен.",
   UNEXPECTED: "Не удалось сохранить работу. Обновите страницу и повторите.",
   WORK_DUPLICATE: "Работа с таким кодом уже существует.",
   WORK_NOT_FOUND: "Работа не найдена.",
 };
+
+export type WorkBlockerActionState = {
+  fieldErrors?: {
+    category?: string[];
+    description?: string[];
+    resolutionNote?: string[];
+    title?: string[];
+  };
+  message?: string;
+};
+
+function revalidateWork(projectId: string, workId: string) {
+  const worksPath = `/app/projects/${projectId}/works`;
+  revalidatePath(worksPath);
+  revalidatePath(`${worksPath}/${workId}`);
+}
+
+export async function openWorkBlocker(
+  projectId: string,
+  workId: string,
+  _state: WorkBlockerActionState,
+  formData: FormData,
+): Promise<WorkBlockerActionState> {
+  const parsedProjectId = postgresUuidSchema.safeParse(projectId);
+  const parsedWorkId = postgresUuidSchema.safeParse(workId);
+  const parsed = workBlockerOpenSchema.safeParse({
+    category: formData.get("category"),
+    description: formData.get("description"),
+    title: formData.get("title"),
+  });
+  if (!parsedProjectId.success || !parsedWorkId.success) {
+    return { message: "Работа не найдена." };
+  }
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+  await requireUser();
+  try {
+    await openWorkBlockerCommand({
+      ...parsed.data,
+      commandId: postgresUuidSchema.parse(crypto.randomUUID()),
+      workId: parsedWorkId.data,
+    });
+  } catch (error) {
+    return { message: actionError(error).message };
+  }
+  revalidateWork(parsedProjectId.data, parsedWorkId.data);
+  return {};
+}
+
+export async function resolveWorkBlocker(
+  projectId: string,
+  workId: string,
+  workBlockerId: string,
+  _state: WorkBlockerActionState,
+  formData: FormData,
+): Promise<WorkBlockerActionState> {
+  const parsedProjectId = postgresUuidSchema.safeParse(projectId);
+  const parsedWorkId = postgresUuidSchema.safeParse(workId);
+  const parsedBlockerId = postgresUuidSchema.safeParse(workBlockerId);
+  const parsed = workBlockerResolveSchema.safeParse({
+    resolutionNote: formData.get("resolutionNote"),
+  });
+  if (
+    !parsedProjectId.success ||
+    !parsedWorkId.success ||
+    !parsedBlockerId.success
+  ) {
+    return { message: "Блокировка не найдена." };
+  }
+  if (!parsed.success) {
+    return { fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+  await requireUser();
+  try {
+    await resolveWorkBlockerCommand({
+      commandId: postgresUuidSchema.parse(crypto.randomUUID()),
+      resolutionNote: parsed.data.resolutionNote,
+      workBlockerId: parsedBlockerId.data,
+    });
+  } catch (error) {
+    return { message: actionError(error).message };
+  }
+  revalidateWork(parsedProjectId.data, parsedWorkId.data);
+  return {};
+}
 
 function actionError(error: unknown): WorkActionState {
   return {
