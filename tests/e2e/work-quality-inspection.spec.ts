@@ -10,7 +10,7 @@ async function login(page: Page, credentials: Credentials) {
   await expect(page).toHaveURL(/\/app$/);
 }
 
-test("Area requester and construction control complete positive quality acceptance", async ({
+test("subcontractor Area requester and general contractor control complete quality acceptance", async ({
   browser,
   page,
   scenario,

@@ -35,8 +35,16 @@ const workQualityCredentials = {
 
 const ids = {
   organization: "00120000-0000-0000-0000-000000000001",
+  subcontractorOrganization: "00120000-0000-0000-0000-000000000002",
   project: "10120000-0000-0000-0000-000000000001",
   projectOrganization: "20120000-0000-0000-0000-000000000001",
+  subcontractorProjectOrganization: "20120000-0000-0000-0000-000000000002",
+  demoUser: "f0260000-0000-0000-0000-000000000001",
+  workCreatorUser: "f0260000-0000-0000-0000-000000000002",
+  workQualityUser: "f0260000-0000-0000-0000-000000000003",
+  fieldUser: "f0260000-0000-0000-0000-000000000004",
+  siteManagerUser: "f0260000-0000-0000-0000-000000000005",
+  areaBConfirmerUser: "f0260000-0000-0000-0000-000000000006",
   projectMember: "30120000-0000-0000-0000-000000000001",
   workCreatorProjectMember: "30120000-0000-0000-0000-000000000002",
   workQualityProjectMember: "30120000-0000-0000-0000-000000000018",
@@ -69,6 +77,8 @@ const ids = {
   issueWorkAssignment: "71120000-0000-0000-0000-000000000017",
   issueDocumentWorkLink: "80120000-0000-0000-0000-000000000017",
 };
+
+let actorIdsDifferFromSeed = false;
 
 // Each Playwright attempt owns a fresh project, users and all linked records.
 // This option only affects local seed data, never application authorization.
@@ -157,7 +167,7 @@ async function insertOne(client, table, value) {
   }
 }
 
-async function findOrCreateDemoUser(adminClient, credentials) {
+async function findOrCreateDemoUser(adminClient, credentials, expectedId) {
   const { data: existingUsers, error: listError } =
     await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (listError) {
@@ -168,6 +178,7 @@ async function findOrCreateDemoUser(adminClient, credentials) {
     (user) => user.email === credentials.email,
   );
   if (existing) {
+    actorIdsDifferFromSeed ||= existing.id !== expectedId;
     const { error } = await adminClient.auth.admin.updateUserById(existing.id, {
       email_confirm: true,
       password: credentials.password,
@@ -181,6 +192,7 @@ async function findOrCreateDemoUser(adminClient, credentials) {
   const { data, error } = await adminClient.auth.admin.createUser({
     ...credentials,
     email_confirm: true,
+    id: expectedId,
   });
   if (error || !data.user) {
     throw new Error(`Не удалось создать local demo user: ${error?.code}`);
@@ -188,10 +200,35 @@ async function findOrCreateDemoUser(adminClient, credentials) {
   return data.user.id;
 }
 
+async function ensureAreaMembership(
+  adminClient,
+  projectMemberId,
+  projectAreaId,
+  assignedBy,
+) {
+  const { data, error: readError } = await adminClient
+    .from("project_member_areas")
+    .select("id")
+    .eq("project_id", ids.project)
+    .eq("project_member_id", projectMemberId)
+    .eq("project_area_id", projectAreaId)
+    .is("removed_at", null)
+    .maybeSingle();
+  if (readError) throw new Error("Не удалось проверить доступ к Area.");
+  if (!data) {
+    await insertOne(adminClient, "project_member_areas", {
+      project_id: ids.project,
+      project_member_id: projectMemberId,
+      project_area_id: projectAreaId,
+      assigned_by: assignedBy,
+    });
+  }
+}
+
 async function ensureTask020Fixture(adminClient, fieldUserId) {
   const { data: fieldMember, error: memberError } = await adminClient
     .from("project_members")
-    .select("id")
+    .select("id, project_organization_id")
     .eq("project_id", ids.project)
     .eq("user_id", fieldUserId)
     .maybeSingle();
@@ -201,10 +238,21 @@ async function ensureTask020Fixture(adminClient, fieldUserId) {
     await insertOne(adminClient, "project_members", {
       id: projectMemberId,
       project_id: ids.project,
-      project_organization_id: ids.projectOrganization,
+      project_organization_id: ids.subcontractorProjectOrganization,
       user_id: fieldUserId,
       status: "active",
     });
+  } else if (
+    fieldMember.project_organization_id !== ids.subcontractorProjectOrganization
+  ) {
+    const { error } = await adminClient
+      .from("project_members")
+      .update({
+        project_organization_id: ids.subcontractorProjectOrganization,
+      })
+      .eq("id", projectMemberId);
+    if (error)
+      throw new Error("Не удалось назначить организацию полевому участнику.");
   }
   const { data: masterRole, error: masterRoleError } = await adminClient
     .from("roles")
@@ -249,24 +297,12 @@ async function ensureTask020Fixture(adminClient, fieldUserId) {
       );
     if (error) throw new Error("Не удалось подготовить Area TASK-020.");
   }
-  const { data: areaMembership, error: areaMembershipError } = await adminClient
-    .from("project_member_areas")
-    .select("id")
-    .eq("project_id", ids.project)
-    .eq("project_member_id", projectMemberId)
-    .eq("project_area_id", ids.areaA)
-    .is("removed_at", null)
-    .maybeSingle();
-  if (areaMembershipError)
-    throw new Error("Не удалось проверить доступ к Area A.");
-  if (!areaMembership) {
-    await insertOne(adminClient, "project_member_areas", {
-      project_id: ids.project,
-      project_member_id: projectMemberId,
-      project_area_id: ids.areaA,
-      assigned_by: fieldUserId,
-    });
-  }
+  await ensureAreaMembership(
+    adminClient,
+    projectMemberId,
+    ids.areaA,
+    fieldUserId,
+  );
   const [workA, workB] = await Promise.all([
     adminClient
       .from("works")
@@ -291,7 +327,7 @@ async function ensureTask021Fixture(
 ) {
   const { data: member, error: memberError } = await adminClient
     .from("project_members")
-    .select("id")
+    .select("id, project_organization_id")
     .eq("project_id", ids.project)
     .eq("user_id", siteManagerUserId)
     .maybeSingle();
@@ -302,10 +338,21 @@ async function ensureTask021Fixture(
     await insertOne(adminClient, "project_members", {
       id: projectMemberId,
       project_id: ids.project,
-      project_organization_id: ids.projectOrganization,
+      project_organization_id: ids.subcontractorProjectOrganization,
       user_id: siteManagerUserId,
       status: "active",
     });
+  } else if (
+    member.project_organization_id !== ids.subcontractorProjectOrganization
+  ) {
+    const { error } = await adminClient
+      .from("project_members")
+      .update({
+        project_organization_id: ids.subcontractorProjectOrganization,
+      })
+      .eq("id", projectMemberId);
+    if (error)
+      throw new Error("Не удалось назначить организацию начальнику участка.");
   }
 
   const { data: siteManagerRole, error: roleError } = await adminClient
@@ -327,24 +374,12 @@ async function ensureTask021Fixture(
   if (assignmentError)
     throw new Error("Не удалось назначить начальника участка.");
 
-  const { data: areaMembership, error: areaMembershipError } = await adminClient
-    .from("project_member_areas")
-    .select("id")
-    .eq("project_id", ids.project)
-    .eq("project_member_id", projectMemberId)
-    .eq("project_area_id", areaId)
-    .is("removed_at", null)
-    .maybeSingle();
-  if (areaMembershipError)
-    throw new Error("Не удалось проверить Area A начальника участка.");
-  if (!areaMembership) {
-    await insertOne(adminClient, "project_member_areas", {
-      project_id: ids.project,
-      project_member_id: projectMemberId,
-      project_area_id: areaId,
-      assigned_by: siteManagerUserId,
-    });
-  }
+  await ensureAreaMembership(
+    adminClient,
+    projectMemberId,
+    areaId,
+    siteManagerUserId,
+  );
 }
 
 async function main() {
@@ -352,20 +387,30 @@ async function main() {
   const adminClient = createClient(url, privilegedKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const userId = await findOrCreateDemoUser(adminClient, demoCredentials);
+  const userId = await findOrCreateDemoUser(
+    adminClient,
+    demoCredentials,
+    ids.demoUser,
+  );
   const workCreatorUserId = await findOrCreateDemoUser(
     adminClient,
     workCreatorCredentials,
+    ids.workCreatorUser,
   );
-  const fieldUserId = await findOrCreateDemoUser(adminClient, fieldCredentials);
+  const fieldUserId = await findOrCreateDemoUser(
+    adminClient,
+    fieldCredentials,
+    ids.fieldUser,
+  );
   const siteManagerUserId = await findOrCreateDemoUser(
     adminClient,
     siteManagerCredentials,
+    ids.siteManagerUser,
   );
   const workQualityUserId = await findOrCreateDemoUser(
     adminClient,
     workQualityCredentials,
-    fieldCredentials,
+    ids.workQualityUser,
   );
 
   const { data: existingProject, error: existingProjectError } =
@@ -381,22 +426,54 @@ async function main() {
   }
 
   if (!existingProject) {
-    await insertOne(adminClient, "organizations", {
-      id: ids.organization,
-      name: "ООО Генподряд Демонстрация",
-    });
     await insertOne(adminClient, "projects", {
       id: ids.project,
       code: e2eNamespace ? "E2E-" + e2eNamespace : "DEMO-012",
       name: "Жилой комплекс Северный квартал",
       status: "active",
     });
-    await insertOne(adminClient, "project_organizations", {
-      id: ids.projectOrganization,
-      project_id: ids.project,
-      organization_id: ids.organization,
-      relationship_type: "general_contractor",
-    });
+  }
+
+  const { error: organizationsError } = await adminClient
+    .from("organizations")
+    .upsert(
+      [
+        { id: ids.organization, name: "Демонстрационная организация Альфа" },
+        {
+          id: ids.subcontractorOrganization,
+          name: "Демонстрационная организация Бета",
+        },
+      ],
+      { onConflict: "id" },
+    );
+  if (organizationsError)
+    throw new Error("Не удалось подготовить demo Organizations.");
+
+  const { error: projectOrganizationsError } = await adminClient
+    .from("project_organizations")
+    .upsert(
+      [
+        {
+          id: ids.projectOrganization,
+          project_id: ids.project,
+          organization_id: ids.organization,
+          relationship_type: "general_contractor",
+          status: "active",
+        },
+        {
+          id: ids.subcontractorProjectOrganization,
+          project_id: ids.project,
+          organization_id: ids.subcontractorOrganization,
+          relationship_type: "subcontractor",
+          status: "active",
+        },
+      ],
+      { onConflict: "id" },
+    );
+  if (projectOrganizationsError)
+    throw new Error("Не удалось подготовить demo ProjectOrganizations.");
+
+  if (!existingProject) {
     await insertOne(adminClient, "project_members", {
       id: ids.projectMember,
       project_id: ids.project,
@@ -587,6 +664,7 @@ async function main() {
   const areaBConfirmerUserId = await findOrCreateDemoUser(
     adminClient,
     areaBConfirmerCredentials,
+    ids.areaBConfirmerUser,
   );
   await ensureTask021Fixture(
     adminClient,
@@ -663,6 +741,18 @@ async function main() {
     );
   if (qualityAssignmentError)
     throw new Error("Не удалось назначить локальный стройконтроль.");
+  for (const [projectMemberId, projectAreaId, assignedBy] of [
+    [ids.projectMember, ids.areaA, userId],
+    [ids.workCreatorProjectMember, ids.areaA, workCreatorUserId],
+    [ids.workQualityProjectMember, ids.areaA, workQualityUserId],
+  ]) {
+    await ensureAreaMembership(
+      adminClient,
+      projectMemberId,
+      projectAreaId,
+      assignedBy,
+    );
+  }
   for (const work of [
     {
       id: ids.lifecycleWork,
@@ -777,10 +867,81 @@ async function main() {
       `Не удалось проверить Acknowledgement: ${acknowledgementError.code}`,
     );
   }
+  const expectedWorkStatuses = new Map([
+    [ids.work, "READY"],
+    [ids.prerequisiteWork, "CLOSED"],
+    [ids.blockedWork, "PLANNED"],
+    [ids.issueWork, "PLANNED"],
+    [ids.dailyReportWork, "READY"],
+    [ids.qualityWork, "READY_FOR_INSPECTION"],
+    [ids.lifecycleWork, "PLANNED"],
+    [ids.reworkWork, "READY_FOR_INSPECTION"],
+  ]);
+  const [
+    worksState,
+    dailyReportsState,
+    blockersState,
+    inspectionRequestsState,
+    inspectionsState,
+    progressState,
+  ] = await Promise.all([
+    adminClient
+      .from("works")
+      .select("id, status")
+      .eq("project_id", ids.project)
+      .in("id", [...expectedWorkStatuses.keys()]),
+    adminClient
+      .from("daily_reports")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", ids.project),
+    adminClient
+      .from("work_blockers")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", ids.project),
+    adminClient
+      .from("inspection_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", ids.project),
+    adminClient
+      .from("inspections")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", ids.project),
+    adminClient
+      .from("work_progress_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", ids.project),
+  ]);
+  for (const result of [
+    worksState,
+    dailyReportsState,
+    blockersState,
+    inspectionRequestsState,
+    inspectionsState,
+    progressState,
+  ]) {
+    if (result.error)
+      throw new Error("Не удалось проверить начальное состояние demo.");
+  }
+  const workStatusesAreInitial =
+    worksState.data?.length === expectedWorkStatuses.size &&
+    worksState.data.every(
+      (work) => expectedWorkStatuses.get(work.id) === work.status,
+    );
+  const scenarioIsInitial =
+    !actorIdsDifferFromSeed &&
+    notification.read_at === null &&
+    acknowledgementCount === 0 &&
+    dailyReportsState.count === 0 &&
+    blockersState.count === 0 &&
+    inspectionRequestsState.count === 0 &&
+    inspectionsState.count === 0 &&
+    progressState.count === 1 &&
+    workStatusesAreInitial;
 
   if (e2eNamespace) {
     console.log(
       JSON.stringify({
+        namespace: e2eNamespace,
         ids,
         demoUser: demoCredentials,
         manager: workCreatorCredentials,
@@ -793,7 +954,7 @@ async function main() {
     return;
   }
 
-  console.log("TASK-012 local demo готов.");
+  console.log("TASK-026 local demo готов.");
   console.log(`Логин: ${demoCredentials.email}`);
   console.log(`Пароль: ${demoCredentials.password}`);
   console.log(`Логин для создания Work: ${workCreatorCredentials.email}`);
@@ -804,7 +965,7 @@ async function main() {
   console.log("Пароль полевого пользователя: " + fieldCredentials.password);
   console.log(`Пароль стройконтроля: ${workQualityCredentials.password}`);
   console.log(
-    notification.read_at === null && acknowledgementCount === 0
+    scenarioIsInitial
       ? "Начальное состояние: Notification unread, Acknowledgement absent."
       : "Сценарий уже использован. Для исходного состояния выполните pnpm db:reset && pnpm demo:seed.",
   );

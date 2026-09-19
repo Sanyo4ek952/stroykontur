@@ -5,8 +5,18 @@ import { promisify } from "node:util";
 
 export type Credentials = { email: string; password: string };
 type Scenario = {
+  namespace: string;
   ids: {
+    organization: string;
+    subcontractorOrganization: string;
+    projectOrganization: string;
+    subcontractorProjectOrganization: string;
+    projectMember: string;
     workCreatorProjectMember: string;
+    workQualityProjectMember: string;
+    fieldProjectMember: string;
+    siteManagerProjectMember: string;
+    areaBConfirmerProjectMember: string;
     project: string;
     work: string;
     blockedWork: string;

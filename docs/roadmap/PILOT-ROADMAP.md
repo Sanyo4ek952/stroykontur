@@ -17,8 +17,8 @@
 | TASK-023 | Work readiness и WorkBlocker | `DONE` | TASK-022 |
 | TASK-024 | Work quality inspection acceptance | `DONE` | TASK-023 |
 | TASK-025 | Automated delivery baseline: полный local gate и CI для `codex/pilot` | `DONE` | TASK-024 |
-| [TASK-026](../tasks/TASK-026-two-organization-demo-data.md) | Детерминированные обезличенные demo-данные двух организаций | `READY` | TASK-025 |
-| [TASK-027](../tasks/TASK-027-local-demo-experience.md) | Локальный demo experience, команды и предупреждение о сети | `PENDING` | TASK-026 |
+| [TASK-026](../tasks/TASK-026-two-organization-demo-data.md) | Детерминированные обезличенные demo-данные двух организаций | `DONE` | TASK-025 |
+| [TASK-027](../tasks/TASK-027-local-demo-experience.md) | Локальный demo experience, команды и предупреждение о сети | `READY` | TASK-026 |
 | [TASK-028](../tasks/TASK-028-final-demo-acceptance.md) | Финальная приёмка локального демо | `PENDING` | TASK-026, TASK-027 |
 | TASK-029+ | Рабочий облачный пилот | `WAITING_APPROVAL` | TASK-028 и новое решение по коммерческому hosting и бюджету |
 
