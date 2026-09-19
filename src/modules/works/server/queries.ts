@@ -155,7 +155,7 @@ export async function getWorkDetails(projectId: string, workId: string) {
       supabase
         .from("work_progress_entries")
         .select(
-          "id, work_date, quantity, note, created_by, created_at, confirmation_status, confirmed_at, confirmed_by, returned_at, returned_by, return_reason",
+          "id, work_date, quantity, note, created_by, created_at, confirmation_status, confirmed_at, confirmed_by, returned_at, returned_by, return_reason, daily_report_id",
         )
         .eq("project_id", projectId)
         .eq("work_id", workId)

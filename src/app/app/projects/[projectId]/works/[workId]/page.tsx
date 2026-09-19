@@ -320,7 +320,16 @@ export default async function WorkDetailsPage({
                     {entry.returnerLabel}
                   </p>
                 ) : null}
+                {entry.daily_report_id ? (
+                  <Link
+                    className="mt-3 block text-sm text-emerald-800 underline"
+                    href={`/app/projects/${projectId}/daily-reports/${entry.daily_report_id}`}
+                  >
+                    Дневной отчёт — решение по всему отчёту
+                  </Link>
+                ) : null}
                 {canConfirmProgress &&
+                !entry.daily_report_id &&
                 entry.confirmation_status === "REPORTED" ? (
                   <WorkProgressDecisionControls
                     projectId={projectId}

@@ -4,6 +4,7 @@ export const projectNavigation = [
   { label: "Мои задачи", segment: "tasks" },
   { label: "Документы", segment: "documents" },
   { label: "Работы", segment: "works" },
+  { label: "Дневные отчёты", segment: "daily-reports" },
   { label: "Уведомления", segment: "notifications" },
 ] as const;
 export function ProjectNavigation({
