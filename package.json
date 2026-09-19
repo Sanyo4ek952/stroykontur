@@ -24,6 +24,8 @@
     "db:test": "supabase test db",
     "db:types": "node scripts/generate-database-types.mjs",
     "demo:seed": "node scripts/seed-task-012-demo.mjs",
+    "demo:prepare": "node scripts/prepare-local-demo.mjs",
+    "demo:verify": "node scripts/verify-local-demo.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

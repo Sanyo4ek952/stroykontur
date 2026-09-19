@@ -1,82 +1,20 @@
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 import { createClient } from "@supabase/supabase-js";
 
-const demoCredentials = {
-  email: "demo@construction.test",
-  password: "Demo-Task012-2026!",
-};
+import {
+  demoAccounts,
+  demoIds,
+  readLocalSupabaseEnvironment,
+} from "./local-demo-support.mjs";
 
-const workCreatorCredentials = {
-  email: "work.manager@construction.test",
-  password: "Work-Task015-2026!",
-};
-
-const fieldCredentials = {
-  email: "field@construction.test",
-  password: "Field-Task020-2026!",
-};
-
-const siteManagerCredentials = {
-  email: "site.manager@construction.test",
-  password: "SiteManager-Task021-2026!",
-};
-
-const areaBConfirmerCredentials = {
-  email: "site.manager.b@construction.test",
-  password: "SiteManagerB-Task022-2026!",
-};
-
-const workQualityCredentials = {
-  email: "work.quality@construction.test",
-  password: "Work-Task018-2026!",
-};
-
-const ids = {
-  organization: "00120000-0000-0000-0000-000000000001",
-  subcontractorOrganization: "00120000-0000-0000-0000-000000000002",
-  project: "10120000-0000-0000-0000-000000000001",
-  projectOrganization: "20120000-0000-0000-0000-000000000001",
-  subcontractorProjectOrganization: "20120000-0000-0000-0000-000000000002",
-  demoUser: "f0260000-0000-0000-0000-000000000001",
-  workCreatorUser: "f0260000-0000-0000-0000-000000000002",
-  workQualityUser: "f0260000-0000-0000-0000-000000000003",
-  fieldUser: "f0260000-0000-0000-0000-000000000004",
-  siteManagerUser: "f0260000-0000-0000-0000-000000000005",
-  areaBConfirmerUser: "f0260000-0000-0000-0000-000000000006",
-  projectMember: "30120000-0000-0000-0000-000000000001",
-  workCreatorProjectMember: "30120000-0000-0000-0000-000000000002",
-  workQualityProjectMember: "30120000-0000-0000-0000-000000000018",
-  fieldProjectMember: "30120000-0000-0000-0000-000000000020",
-  siteManagerProjectMember: "30120000-0000-0000-0000-000000000121",
-  areaBConfirmerProjectMember: "30220000-0000-0000-0000-000000000001",
-  dailyReportWork: "70220000-0000-0000-0000-000000000001",
-  qualityWork: "70120000-0000-0000-0000-000000000024",
-  areaA: "40120000-0000-0000-0000-000000000001",
-  areaB: "40120000-0000-0000-0000-000000000002",
-  lifecycleWork: "70120000-0000-0000-0000-000000000018",
-  lifecycleWorkAssignment: "71120000-0000-0000-0000-000000000018",
-  lifecycleDocumentWorkLink: "80120000-0000-0000-0000-000000000018",
-  reworkWork: "70120000-0000-0000-0000-000000000019",
-  technicalDocument: "50120000-0000-0000-0000-000000000001",
-  documentRevision: "60120000-0000-0000-0000-000000000001",
-  work: "70120000-0000-0000-0000-000000000001",
-  prerequisiteWork: "70120000-0000-0000-0000-000000000002",
-  blockedWork: "70120000-0000-0000-0000-000000000003",
-  workAssignment: "71120000-0000-0000-0000-000000000001",
-  blockedWorkAssignment: "71120000-0000-0000-0000-000000000002",
-  workDependencyPrerequisite: "72120000-0000-0000-0000-000000000001",
-  workDependencyBlocked: "72120000-0000-0000-0000-000000000002",
-  workProgress: "73120000-0000-0000-0000-000000000001",
-  documentWorkLink: "80120000-0000-0000-0000-000000000001",
-  documentIssueForWork: "90120000-0000-0000-0000-000000000001",
-  issueTechnicalDocument: "50120000-0000-0000-0000-000000000017",
-  issueDocumentRevision: "60120000-0000-0000-0000-000000000017",
-  issueWork: "70120000-0000-0000-0000-000000000017",
-  issueWorkAssignment: "71120000-0000-0000-0000-000000000017",
-  issueDocumentWorkLink: "80120000-0000-0000-0000-000000000017",
-};
+const demoCredentials = { ...demoAccounts.pto };
+const workCreatorCredentials = { ...demoAccounts.manager };
+const fieldCredentials = { ...demoAccounts.field };
+const siteManagerCredentials = { ...demoAccounts.siteManager };
+const areaBConfirmerCredentials = { ...demoAccounts.areaBConfirmer };
+const workQualityCredentials = { ...demoAccounts.quality };
+const ids = { ...demoIds };
 
 let actorIdsDifferFromSeed = false;
 
@@ -112,52 +50,6 @@ if (e2eNamespace) {
       "+" + e2eNamespace + "@",
     );
   }
-}
-
-function readLocalSupabaseEnvironment() {
-  let output;
-
-  try {
-    output = execFileSync(
-      process.execPath,
-      ["node_modules/supabase/dist/supabase.js", "status", "-o", "env"],
-      {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      },
-    );
-  } catch {
-    throw new Error(
-      "Локальный Supabase не запущен. Сначала выполните pnpm db:start.",
-    );
-  }
-
-  const environment = Object.fromEntries(
-    output
-      .split(/\r?\n/)
-      .map((line) => line.match(/^([A-Z0-9_]+)="?(.*?)"?$/))
-      .filter(Boolean)
-      .map((match) => [match[1], match[2]]),
-  );
-  const url = environment.API_URL;
-  const privilegedKey = environment.SECRET_KEY ?? environment.SERVICE_ROLE_KEY;
-  const publishableKey = environment.PUBLISHABLE_KEY ?? environment.ANON_KEY;
-
-  if (!url || !privilegedKey || !publishableKey) {
-    throw new Error(
-      "Не удалось получить ключи только что запущенного local Supabase.",
-    );
-  }
-
-  const parsedUrl = new URL(url);
-  if (
-    !["127.0.0.1", "localhost", "::1"].includes(parsedUrl.hostname) ||
-    parsedUrl.port !== "54321"
-  ) {
-    throw new Error("Demo seed отказался работать с нелокальным Supabase.");
-  }
-
-  return { privilegedKey, publishableKey, url };
 }
 
 async function insertOne(client, table, value) {

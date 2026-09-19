@@ -4,6 +4,17 @@ import { promisify } from "node:util";
 
 import { expect, test, type Credentials } from "./fixtures";
 
+async function login(
+  page: import("@playwright/test").Page,
+  credentials: Credentials,
+) {
+  await page.goto("/login");
+  await page.getByLabel("Электронная почта").fill(credentials.email);
+  await page.getByLabel("Пароль").fill(credentials.password);
+  await page.getByRole("button", { name: "Войти" }).click();
+  await expect(page).toHaveURL(/\/app$/);
+}
+
 async function clientFor(credentials: Credentials) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   if (!["127.0.0.1", "localhost"].includes(new URL(url).hostname)) {
@@ -147,4 +158,64 @@ test("seed is deterministic and keeps every actor in the expected organization, 
     p_command_id: crypto.randomUUID(),
   });
   expect(denied.error?.code).toBe("42501");
+});
+
+test("local entry point warns about network limits", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByText("Локальное демо")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Краткий сценарий двух организаций" }),
+  ).toBeVisible();
+  await expect(page.getByRole("note")).toContainText(
+    "localhost сам по себе недоступен",
+  );
+  await expect(page.getByRole("note")).toContainText(
+    "PWA не означает offline sync",
+  );
+});
+
+test("two organizational actors see only their permitted controls and data", async ({
+  page,
+  scenario,
+}) => {
+  test.setTimeout(60_000);
+  const projectPath = `/app/projects/${scenario.ids.project}`;
+
+  await login(page, scenario.manager);
+  const managerProject = page
+    .getByRole("listitem")
+    .filter({ hasText: "Жилой комплекс Северный квартал" });
+  await expect(managerProject).toContainText(
+    "Демонстрационная организация Альфа",
+  );
+  await expect(managerProject).toContainText("Генподрядчик");
+  await page.goto(`${projectPath}/works`);
+  await expect(
+    page.getByRole("link", { name: "Создать работу" }),
+  ).toBeVisible();
+  await expect(page.getByText("WORK-FND-002", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Выйти" }).click();
+  await expect(page).toHaveURL(/\/login$/);
+
+  await login(page, scenario.field);
+  const subcontractorProject = page
+    .getByRole("listitem")
+    .filter({ hasText: "Жилой комплекс Северный квартал" });
+  await expect(subcontractorProject).toContainText(
+    "Демонстрационная организация Бета",
+  );
+  await expect(subcontractorProject).toContainText("Субподрядчик");
+  await page.goto(`${projectPath}/works`);
+  await expect(page.getByRole("link", { name: "Создать работу" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByText("WORK-FND-001", { exact: true })).toBeVisible();
+  await expect(page.getByText("WORK-FND-002", { exact: true })).toBeVisible();
+  await page.goto(`${projectPath}/daily-reports`);
+  await expect(page.getByRole("link", { name: "Создать отчёт" })).toBeVisible();
+  await page.getByRole("link", { name: "Создать отчёт" }).click();
+  await expect(page.getByLabel("Зона").locator("option")).toHaveCount(1);
+  await expect(page.getByLabel("Зона")).toContainText("AREA-A · Зона A");
+  await expect(page.getByLabel("Зона")).not.toContainText("AREA-B");
 });
