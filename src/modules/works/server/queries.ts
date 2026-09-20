@@ -112,10 +112,9 @@ export async function getWorks(projectId: string, filters: WorkFilters) {
       .from("project_areas")
       .select("id, code, name")
       .eq("project_id", projectId),
-    supabase
-      .from("work_assignment_candidates")
-      .select("id, display_name, role_names")
-      .eq("project_id", projectId),
+    supabase.rpc("get_work_assignment_candidates", {
+      p_project_id: projectId,
+    }),
   ]);
   if (
     assignmentsResult.error ||
@@ -213,10 +212,9 @@ export async function getWorkDetails(projectId: string, workId: string) {
       .eq("work_id", workId)
       .order("work_date", { ascending: false })
       .order("created_at", { ascending: false }),
-    supabase
-      .from("work_assignment_candidates")
-      .select("id, display_name, role_names")
-      .eq("project_id", projectId),
+    supabase.rpc("get_work_assignment_candidates", {
+      p_project_id: projectId,
+    }),
   ]);
 
   if (
@@ -438,16 +436,19 @@ export async function getWorkCapabilities(projectId: string) {
 
 export async function getWorkAssignmentCandidates(projectId: string) {
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("work_assignment_candidates")
-    .select("id, display_name, role_names")
-    .eq("project_id", projectId)
-    .order("display_name");
+  const { data, error } = await supabase.rpc("get_work_assignment_candidates", {
+    p_project_id: projectId,
+  });
   if (error) queryError("Не удалось загрузить участников для назначения.");
-  return data.filter(hasCandidateId).map((member) => ({
-    id: member.id,
-    ...assignmentCandidatePresentation(member),
-  }));
+  return data
+    .filter(hasCandidateId)
+    .sort((left, right) =>
+      (left.display_name ?? "").localeCompare(right.display_name ?? "", "ru"),
+    )
+    .map((member) => ({
+      id: member.id,
+      ...assignmentCandidatePresentation(member),
+    }));
 }
 
 async function canManageWorkProgressInArea(

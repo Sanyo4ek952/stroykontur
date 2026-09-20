@@ -70,13 +70,14 @@ export async function getAreaMembers(projectId: string, areaId: string) {
 }
 export async function getAreaCandidates(projectId: string) {
   const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from("project_area_member_candidates")
-    .select("id")
-    .eq("project_id", projectId)
-    .order("id");
-  if (error) throw new Error("Не удалось загрузить участников проекта.");
-  return (data ?? []).flatMap((row) =>
-    row.id ? [{ id: row.id, label: `Участник ${row.id.slice(0, 8)}` }] : [],
+  const { data, error } = await supabase.rpc(
+    "get_project_area_member_candidates",
+    { p_project_id: projectId },
   );
+  if (error) throw new Error("Не удалось загрузить участников проекта.");
+  return (data ?? [])
+    .sort((left, right) => (left.id ?? "").localeCompare(right.id ?? ""))
+    .flatMap((row) =>
+      row.id ? [{ id: row.id, label: `Участник ${row.id.slice(0, 8)}` }] : [],
+    );
 }

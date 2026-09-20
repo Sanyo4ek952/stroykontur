@@ -21,10 +21,43 @@ let actorIdsDifferFromSeed = false;
 
 // Each Playwright attempt owns a fresh project, users and all linked records.
 // This option only affects local seed data, never application authorization.
-const e2eNamespace = process.argv[2] === "--e2e" ? process.argv[3] : undefined;
-if (process.argv.length > 2 && !e2eNamespace?.match(/^[0-9a-f-]{36}$/)) {
-  throw new Error("Expected --e2e followed by a UUID namespace.");
+const seedArguments = process.argv.slice(2);
+const e2eNamespace =
+  seedArguments[0] === "--e2e" ? seedArguments[1] : undefined;
+const remoteProjectRef =
+  seedArguments[0] === "--remote-project-ref" ? seedArguments[1] : undefined;
+
+if (
+  seedArguments.length > 0 &&
+  !(
+    (seedArguments.length === 2 && e2eNamespace?.match(/^[0-9a-f-]{36}$/)) ||
+    (seedArguments.length === 2 && remoteProjectRef?.match(/^[a-z0-9]{20}$/))
+  )
+) {
+  throw new Error(
+    "Expected --e2e <UUID> or --remote-project-ref <project-ref>.",
+  );
 }
+
+if (remoteProjectRef) {
+  const passwordVariables = [
+    [demoCredentials, "REMOTE_DEMO_PTO_PASSWORD"],
+    [workCreatorCredentials, "REMOTE_DEMO_MANAGER_PASSWORD"],
+    [workQualityCredentials, "REMOTE_DEMO_QUALITY_PASSWORD"],
+    [fieldCredentials, "REMOTE_DEMO_FIELD_PASSWORD"],
+    [siteManagerCredentials, "REMOTE_DEMO_SITE_MANAGER_PASSWORD"],
+    [areaBConfirmerCredentials, "REMOTE_DEMO_AREA_B_PASSWORD"],
+  ];
+
+  for (const [credentials, variableName] of passwordVariables) {
+    const password = process.env[variableName];
+    if (!password || password.length < 16) {
+      throw new Error(`${variableName} must contain at least 16 characters.`);
+    }
+    credentials.password = password;
+  }
+}
+
 if (e2eNamespace) {
   for (const key of Object.keys(ids)) {
     const hex = createHash("sha256")
@@ -51,6 +84,27 @@ if (e2eNamespace) {
       "+" + e2eNamespace + "@",
     );
   }
+}
+
+function readSeedEnvironment() {
+  if (!remoteProjectRef) return readLocalSupabaseEnvironment();
+
+  const url = process.env.REMOTE_SUPABASE_URL;
+  const publishableKey = process.env.REMOTE_SUPABASE_PUBLISHABLE_KEY;
+  const privilegedKey = process.env.REMOTE_SUPABASE_SECRET_KEY;
+  const expectedUrl = `https://${remoteProjectRef}.supabase.co`;
+
+  if (url !== expectedUrl) {
+    throw new Error(`Remote seed URL must be exactly ${expectedUrl}.`);
+  }
+  if (!publishableKey?.startsWith("sb_publishable_")) {
+    throw new Error("Remote seed requires a Supabase publishable key.");
+  }
+  if (!privilegedKey?.startsWith("sb_secret_")) {
+    throw new Error("Remote seed requires a Supabase secret key.");
+  }
+
+  return { privilegedKey, publishableKey, url };
 }
 
 async function insertOne(client, table, value) {
@@ -286,7 +340,7 @@ async function ensureTask021Fixture(
 }
 
 async function main() {
-  const { privilegedKey, publishableKey, url } = readLocalSupabaseEnvironment();
+  const { privilegedKey, publishableKey, url } = readSeedEnvironment();
   const adminClient = createClient(url, privilegedKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
@@ -847,9 +901,11 @@ async function main() {
     progressState.count === 1 &&
     workStatusesAreInitial;
 
-  if (e2eNamespace) {
+  if (e2eNamespace || remoteProjectRef) {
     console.log(
       JSON.stringify({
+        mode: remoteProjectRef ? "remote-demo" : "e2e",
+        projectRef: remoteProjectRef,
         namespace: e2eNamespace,
         ids,
         demoUser: demoCredentials,

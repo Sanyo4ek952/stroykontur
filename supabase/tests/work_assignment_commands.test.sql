@@ -29,14 +29,14 @@ insert into public.works(id,project_id,code,title,status,created_by) values
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','a0190000-0000-0000-0000-000000000002',true);
-select is((select count(*) from public.work_assignment_candidates),0::bigint,'actor without work.assign sees no candidate identities');
+select is((select count(*) from public.get_work_assignment_candidates('10190000-0000-0000-0000-000000000001')),0::bigint,'actor without work.assign sees no candidate identities');
 reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub','a0190000-0000-0000-0000-000000000001',true);
-select is((select display_name from public.work_assignment_candidates where id='30190000-0000-0000-0000-000000000002'),'TASK-019 Target','candidate exposes a human display name');
-select is((select role_names from public.work_assignment_candidates where id='30190000-0000-0000-0000-000000000002'),array['ПТО']::text[],'candidate exposes active role names');
-select is((select count(*) from public.work_assignment_candidates where project_id='10190000-0000-0000-0000-000000000002'),0::bigint,'candidate projection does not expose another project');
+select is((select display_name from public.get_work_assignment_candidates('10190000-0000-0000-0000-000000000001') where id='30190000-0000-0000-0000-000000000002'),'TASK-019 Target','candidate exposes a human display name');
+select is((select role_names from public.get_work_assignment_candidates('10190000-0000-0000-0000-000000000001') where id='30190000-0000-0000-0000-000000000002'),array['ПТО']::text[],'candidate exposes active role names');
+select is((select count(*) from public.get_work_assignment_candidates('10190000-0000-0000-0000-000000000002')),0::bigint,'candidate projection does not expose another project');
 select lives_ok($$select public.assign_work('70190000-0000-0000-0000-000000000001','30190000-0000-0000-0000-000000000001','80190000-0000-0000-0000-000000000001','first')$$, 'initial assignment succeeds');
 reset role;
 select is((select count(*) from public.work_assignments where work_id='70190000-0000-0000-0000-000000000001' and ended_at is null),1::bigint,'one active assignment after initial assignment');
