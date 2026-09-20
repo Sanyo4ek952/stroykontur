@@ -31,6 +31,15 @@ export const demoAccounts = {
   },
 };
 
+export const demoDisplayNames = {
+  pto: "Анна Орлова",
+  manager: "Алексей Воронцов",
+  field: "Михаил Соколов",
+  siteManager: "Сергей Кузнецов",
+  areaBConfirmer: "Илья Морозов",
+  quality: "Ольга Лебедева",
+};
+
 export const demoIds = {
   organization: "00120000-0000-0000-0000-000000000001",
   subcontractorOrganization: "00120000-0000-0000-0000-000000000002",

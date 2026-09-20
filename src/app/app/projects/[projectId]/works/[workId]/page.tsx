@@ -491,7 +491,7 @@ export default async function WorkDetailsPage({
             candidates={candidates}
           />
         ) : null}
-        <p className="mt-4 text-base font-semibold text-slate-950">
+        <p className="mt-4 min-w-0 break-words text-base font-semibold text-slate-950 [overflow-wrap:anywhere]">
           {work.currentAssignment?.responsibleLabel ?? "Не назначен"}
         </p>
         {work.assignmentHistory.length > 0 ? (
@@ -503,7 +503,7 @@ export default async function WorkDetailsPage({
               >
                 <div className="flex flex-wrap justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-slate-950">
+                    <p className="break-words font-semibold text-slate-950 [overflow-wrap:anywhere]">
                       {assignment.responsibleLabel}
                     </p>
                     <p className="mt-1 text-sm text-slate-600">

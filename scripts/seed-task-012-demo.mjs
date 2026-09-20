@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import {
   demoAccounts,
+  demoDisplayNames,
   demoIds,
   readLocalSupabaseEnvironment,
 } from "./local-demo-support.mjs";
@@ -59,7 +60,12 @@ async function insertOne(client, table, value) {
   }
 }
 
-async function findOrCreateDemoUser(adminClient, credentials, expectedId) {
+async function findOrCreateDemoUser(
+  adminClient,
+  credentials,
+  expectedId,
+  displayName,
+) {
   const { data: existingUsers, error: listError } =
     await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (listError) {
@@ -74,6 +80,10 @@ async function findOrCreateDemoUser(adminClient, credentials, expectedId) {
     const { error } = await adminClient.auth.admin.updateUserById(existing.id, {
       email_confirm: true,
       password: credentials.password,
+      app_metadata: {
+        ...existing.app_metadata,
+        display_name: displayName,
+      },
     });
     if (error) {
       throw new Error(`Не удалось обновить local demo user: ${error.code}`);
@@ -85,6 +95,7 @@ async function findOrCreateDemoUser(adminClient, credentials, expectedId) {
     ...credentials,
     email_confirm: true,
     id: expectedId,
+    app_metadata: { display_name: displayName },
   });
   if (error || !data.user) {
     throw new Error(`Не удалось создать local demo user: ${error?.code}`);
@@ -283,26 +294,31 @@ async function main() {
     adminClient,
     demoCredentials,
     ids.demoUser,
+    demoDisplayNames.pto,
   );
   const workCreatorUserId = await findOrCreateDemoUser(
     adminClient,
     workCreatorCredentials,
     ids.workCreatorUser,
+    demoDisplayNames.manager,
   );
   const fieldUserId = await findOrCreateDemoUser(
     adminClient,
     fieldCredentials,
     ids.fieldUser,
+    demoDisplayNames.field,
   );
   const siteManagerUserId = await findOrCreateDemoUser(
     adminClient,
     siteManagerCredentials,
     ids.siteManagerUser,
+    demoDisplayNames.siteManager,
   );
   const workQualityUserId = await findOrCreateDemoUser(
     adminClient,
     workQualityCredentials,
     ids.workQualityUser,
+    demoDisplayNames.quality,
   );
 
   const { data: existingProject, error: existingProjectError } =
@@ -557,6 +573,7 @@ async function main() {
     adminClient,
     areaBConfirmerCredentials,
     ids.areaBConfirmerUser,
+    demoDisplayNames.areaBConfirmer,
   );
   await ensureTask021Fixture(
     adminClient,

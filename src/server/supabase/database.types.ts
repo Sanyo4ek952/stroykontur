@@ -3115,8 +3115,10 @@ export type Database = {
       };
       work_assignment_candidates: {
         Row: {
+          display_name: string | null;
           id: string | null;
           project_id: string | null;
+          role_names: string[] | null;
         };
         Relationships: [
           {
