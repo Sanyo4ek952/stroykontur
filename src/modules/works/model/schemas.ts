@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { workBlockerCategories } from "./readiness";
+
 export const postgresUuidSchema = z
   .string()
   .regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
@@ -85,6 +87,28 @@ export const workProgressReturnSchema = z.object({
     .string()
     .trim()
     .min(1, { error: "Укажите причину возврата." })
+    .max(2000),
+});
+
+export const workBlockerOpenSchema = z.object({
+  category: z.enum(workBlockerCategories),
+  description: z
+    .string()
+    .trim()
+    .min(1, { error: "Опишите причину блокировки." })
+    .max(4000),
+  title: z
+    .string()
+    .trim()
+    .min(1, { error: "Введите название блокировки." })
+    .max(200),
+});
+
+export const workBlockerResolveSchema = z.object({
+  resolutionNote: z
+    .string()
+    .trim()
+    .min(1, { error: "Опишите, как устранена блокировка." })
     .max(2000),
 });
 

@@ -12,9 +12,31 @@ async function login(page: Page, credentials: Credentials) {
 }
 async function transition(page: Page, label: string, status: string) {
   await page.getByRole("button", { name: label, exact: true }).click();
-  await expect(page.getByText(status, { exact: true })).toBeVisible();
+  await expect(page.getByText(status, { exact: true }).first()).toBeVisible();
   await page.reload();
-  await expect(page.getByText(status, { exact: true })).toBeVisible();
+  await expect(page.getByText(status, { exact: true }).first()).toBeVisible();
+}
+
+async function addLifecycleBlocker(page: Page, suffix: string) {
+  await page.getByText("Добавить блокировку", { exact: true }).click();
+  await page.getByLabel("Категория").selectOption("TECHNICAL");
+  await page.getByLabel("Название").fill(`Lifecycle blocker ${suffix}`);
+  await page.getByLabel("Описание").fill("Техническая причина");
+  await page.getByRole("button", { name: "Открыть блокировку" }).click();
+  await expect(
+    page.getByText(`Lifecycle blocker ${suffix}`).first(),
+  ).toBeVisible();
+}
+
+async function resolveLifecycleBlocker(page: Page, suffix: string) {
+  const blocker = page
+    .getByRole("listitem")
+    .filter({ hasText: `Lifecycle blocker ${suffix}` })
+    .last();
+  await blocker.getByText("Устранить", { exact: true }).click();
+  await blocker.getByLabel("Результат устранения").fill("Причина устранена");
+  await blocker.getByRole("button", { name: "Подтвердить устранение" }).click();
+  await expect(page.getByText("Причина устранена")).toBeVisible();
 }
 
 test("complete lifecycle separates production and quality, persists and confirms closure", async ({
@@ -35,18 +57,44 @@ test("complete lifecycle separates production and quality, persists and confirms
   ).toHaveCount(0);
   await transition(page, "Подготовить к работе", "Готова");
   await transition(page, "Начать работу", "В работе");
+  await addLifecycleBlocker(page, "1");
   await transition(page, "Заблокировать работу", "Заблокирована");
+  await resolveLifecycleBlocker(page, "1");
   await transition(page, "Возобновить работу", "В работе");
   await transition(page, "Передать на проверку", "Готова к проверке");
   await expect(
     page.getByRole("button", { name: "Принять работу" }),
   ).toHaveCount(0);
+  const requesterContext = await browser.newContext();
+  const requesterPage = await requesterContext.newPage();
+  try {
+    await login(requesterPage, scenario.siteManager);
+    await requesterPage.goto(`${worksPath}/${workId}`);
+    await requesterPage
+      .getByRole("button", { name: "Вызвать строительный контроль" })
+      .click();
+    await expect(
+      requesterPage.getByText("Вызов создан", { exact: true }),
+    ).toBeVisible();
+  } finally {
+    await requesterContext.close();
+  }
   const qualityContext = await browser.newContext();
   const qualityPage = await qualityContext.newPage();
   try {
     await login(qualityPage, quality);
     await qualityPage.goto(`${worksPath}/${workId}`);
-    await transition(qualityPage, "Принять работу", "Принята");
+    await qualityPage.getByRole("button", { name: "Принять вызов" }).click();
+    await qualityPage.getByRole("button", { name: "Начать проверку" }).click();
+    await qualityPage
+      .getByLabel("Результат проверки")
+      .fill("Проверка полного lifecycle пройдена.");
+    await qualityPage
+      .getByRole("button", { name: "Принять качество работы" })
+      .click();
+    await expect(
+      qualityPage.getByText("Принята", { exact: true }).first(),
+    ).toBeVisible();
     await expect(
       qualityPage.getByRole("button", { name: "Закрыть работу" }),
     ).toHaveCount(0);
@@ -66,7 +114,7 @@ test("complete lifecycle separates production and quality, persists and confirms
   ).toHaveCount(0);
 });
 
-test("quality rework needs confirmation and has no undocumented reverse command", async ({
+test("legacy quality lifecycle buttons do not bypass the inspection aggregate", async ({
   page,
   scenario,
 }) => {
@@ -74,15 +122,11 @@ test("quality rework needs confirmation and has no undocumented reverse command"
   const worksPath = `/app/projects/${scenario.ids.project}/works`;
   await login(page, quality);
   await page.goto(`${worksPath}/${scenario.ids.reworkWork}`);
-  page.once("dialog", (dialog) => dialog.dismiss());
-  await page.getByRole("button", { name: "Вернуть на доработку" }).click();
   await expect(
-    page.getByText("Готова к проверке", { exact: true }),
-  ).toBeVisible();
-  page.once("dialog", (dialog) => dialog.accept());
-  await transition(page, "Вернуть на доработку", "Требует исправления");
+    page.getByRole("button", { name: "Вернуть на доработку" }),
+  ).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "Действия с работой" }),
+    page.getByRole("button", { name: "Принять работу" }),
   ).toHaveCount(0);
 });
 
@@ -135,8 +179,27 @@ test("concurrent retries create one history pair; competing commands serialize",
     code: `CONCURRENT-${id}`,
     title: "Проверка конкурентных переходов",
     created_by: auth.user!.id,
+    project_area_id: scenario.ids.areaA,
   });
   expect(createError).toBeNull();
+  const adminSql = `
+    insert into public.work_assignments(project_id,work_id,project_member_id,assigned_by)
+    values('${projectId}','${id}','${scenario.ids.workCreatorProjectMember}','${auth.user!.id}');
+    insert into public.document_work_links(project_id,technical_document_id,work_id,created_by)
+    values('${projectId}','${scenario.ids.technicalDocument}','${id}','${auth.user!.id}');`;
+  execFileSync("docker", [
+    "exec",
+    "supabase_db_construction-pwa",
+    "psql",
+    "-U",
+    "postgres",
+    "-d",
+    "postgres",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-c",
+    adminSql,
+  ]);
   const args = { p_project_id: projectId, p_work_id: id };
   const readyResults = await Promise.all([
     client.rpc("mark_work_ready", args),
@@ -144,6 +207,17 @@ test("concurrent retries create one history pair; competing commands serialize",
   ]);
   expect(readyResults.every(({ error }) => error === null)).toBe(true);
   expect((await client.rpc("start_work", args)).error).toBeNull();
+  expect(
+    (
+      await client.rpc("open_work_blocker", {
+        p_category: "TECHNICAL",
+        p_command_id: crypto.randomUUID(),
+        p_description: "Concurrency fixture",
+        p_title: "Concurrency fixture",
+        p_work_id: id,
+      })
+    ).error,
+  ).toBeNull();
   const results = await Promise.all([
     client.rpc("block_work", args),
     client.rpc("mark_work_ready_for_inspection", args),

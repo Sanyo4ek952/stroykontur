@@ -2,22 +2,48 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import {
+  inspectionRequestStatusLabels,
+  inspectionStatusLabels,
+} from "@/modules/quality/model/presentation";
+import {
+  getQualityInspectionCapabilities,
+  getWorkQualityInspections,
+} from "@/modules/quality/server/queries";
+import {
   getWorkProgressStatusLabel,
   getWorkProgressTotals,
 } from "@/modules/works/model/progress";
 import { postgresUuidSchema } from "@/modules/works/model/schemas";
 import { getWorkDocumentLinkData } from "@/modules/document-work-links/server/queries";
 import {
+  getReadinessFailureMessages,
+  workBlockerCategoryLabels,
+  workBlockerStatusLabels,
+  type WorkBlockerCategory,
+} from "@/modules/works/model/readiness";
+import {
   getWorkAssignmentCandidates,
+  getWorkBlockers,
   getWorkCapabilities,
   getWorkDetails,
+  getWorkReadiness,
   canConfirmWorkProgress,
   canReportWorkProgress,
 } from "@/modules/works/server/queries";
 
 import { DocumentWorkLinkManager } from "../../document-work-link-manager";
 import { WorkAssignmentControls } from "./assignment-controls";
+import {
+  OpenWorkBlockerControl,
+  ResolveWorkBlockerControl,
+} from "./blocker-controls";
 import { WorkLifecycleControls } from "./lifecycle-controls";
+import {
+  AcceptInspectionControl,
+  RequestInspectionControl,
+  ScheduleInspectionControl,
+  StartInspectionControl,
+} from "./quality-controls";
 import {
   WorkProgressControls,
   WorkProgressDecisionControls,
@@ -90,6 +116,14 @@ export default async function WorkDetailsPage({
   ]);
   if (!work) return <EmptyState title="Работа не найдена." />;
 
+  const [readiness, blockers, qualityHistory, qualityCapabilities] =
+    await Promise.all([
+      getWorkReadiness(work.id),
+      getWorkBlockers(projectId, work.id),
+      getWorkQualityInspections(projectId, work.id),
+      getQualityInspectionCapabilities(projectId, work.project_area_id),
+    ]);
+
   const [canReportProgress, canConfirmProgress] = await Promise.all([
     canReportWorkProgress(projectId, work.project_area_id),
     canConfirmWorkProgress(projectId, work.project_area_id),
@@ -98,7 +132,33 @@ export default async function WorkDetailsPage({
   const candidates = capabilities.canAssignWork
     ? await getWorkAssignmentCandidates(projectId)
     : [];
-  const availableActions = getWorkLifecycleActions(work.status, capabilities);
+  const activeBlockers = blockers.filter(
+    (blocker) => blocker.status === "OPEN",
+  );
+  const resolvedBlockers = blockers.filter(
+    (blocker) => blocker.status === "RESOLVED",
+  );
+  const availableActions = getWorkLifecycleActions(work.status, capabilities, {
+    activeBlockerCount: activeBlockers.length,
+    isReady: readiness.isReady,
+  });
+  const lifecycleUnavailableReasons =
+    (work.status === "PLANNED" || work.status === "READY") && !readiness.isReady
+      ? getReadinessFailureMessages(readiness)
+      : work.status === "IN_PROGRESS" &&
+          capabilities.canBlockWork &&
+          activeBlockers.length === 0
+        ? ["Сначала добавьте активную блокировку."]
+        : work.status === "BLOCKED" && activeBlockers.length > 0
+          ? activeBlockers.map(
+              (blocker) => `Не устранена блокировка «${blocker.title}».`,
+            )
+          : [];
+  const activeQuality = qualityHistory.find(
+    (request) =>
+      request.status === "REQUESTED" ||
+      (request.inspection !== null && request.inspection.status !== "ACCEPTED"),
+  );
 
   return (
     <>
@@ -136,11 +196,268 @@ export default async function WorkDetailsPage({
         </dl>
       </section>
 
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-slate-950">
+            Готовность к работе
+          </h2>
+          <span
+            className={`rounded-full px-3 py-1 text-sm font-semibold ${
+              readiness.isReady
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {readiness.isReady ? "Готова" : "Не готова"}
+          </span>
+        </div>
+        <ul className="mt-4 space-y-3">
+          {readiness.checks.map((check) => (
+            <li
+              className={`rounded-xl border p-3 ${
+                check.passed
+                  ? "border-emerald-200 bg-emerald-50"
+                  : "border-red-200 bg-red-50"
+              }`}
+              key={check.key}
+            >
+              <p className="font-medium text-slate-900">
+                {check.passed ? "✓" : "✕"} {check.message}
+              </p>
+              {check.items.length > 0 ? (
+                <ul className="mt-2 space-y-1 pl-6 text-sm text-slate-700">
+                  {check.items.map((item) => (
+                    <li className="list-disc" key={item.id}>
+                      {check.key === "dependencies"
+                        ? `${item.code ?? "Работа"} · ${item.title} · ${item.status}`
+                        : `${
+                            workBlockerCategoryLabels[
+                              item.category as WorkBlockerCategory
+                            ] ?? item.category
+                          } · ${item.title}`}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <WorkLifecycleControls
         availableActions={availableActions}
         projectId={projectId}
+        unavailableReasons={lifecycleUnavailableReasons}
         workId={work.id}
       />
+
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">
+              Контроль качества
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Вызов, проверка и положительное решение строительного контроля.
+            </p>
+          </div>
+          {work.status === "READY_FOR_INSPECTION" &&
+          qualityCapabilities.canRequest &&
+          !activeQuality ? (
+            <RequestInspectionControl projectId={projectId} workId={work.id} />
+          ) : null}
+        </div>
+
+        {qualityHistory.length === 0 ? (
+          <p className="mt-4 text-sm text-slate-600">
+            Вызов строительного контроля ещё не создан.
+          </p>
+        ) : (
+          <ol className="mt-4 space-y-4">
+            {qualityHistory.map((request) => {
+              const inspection = request.inspection;
+              const isInspector =
+                inspection?.inspector_project_member_id ===
+                qualityCapabilities.ownProjectMemberId;
+              return (
+                <li
+                  className="rounded-2xl border border-slate-200 p-4"
+                  key={request.id}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-slate-950">
+                        {inspection
+                          ? (inspectionStatusLabels[inspection.status] ??
+                            inspection.status)
+                          : (inspectionRequestStatusLabels[request.status] ??
+                            request.status)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        Вызвал {request.requestedByLabel} ·{" "}
+                        {formatDateTime(request.requested_at)}
+                      </p>
+                    </div>
+                    {request.status === "REQUESTED" &&
+                    qualityCapabilities.canPerform ? (
+                      <ScheduleInspectionControl
+                        inspectionRequestId={request.id}
+                        projectId={projectId}
+                        workId={work.id}
+                      />
+                    ) : null}
+                  </div>
+                  {inspection ? (
+                    <div className="mt-3 border-t border-slate-100 pt-3">
+                      <p className="text-sm text-slate-700">
+                        Инспектор: {inspection.inspectorLabel}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        Запланировано {formatDateTime(inspection.scheduled_at)}
+                        {inspection.started_at
+                          ? ` · начато ${formatDateTime(inspection.started_at)}`
+                          : ""}
+                        {inspection.accepted_at
+                          ? ` · принято ${formatDateTime(inspection.accepted_at)}`
+                          : ""}
+                      </p>
+                      {inspection.result_note ? (
+                        <p className="mt-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900">
+                          Результат: {inspection.result_note}
+                        </p>
+                      ) : null}
+                      {inspection.status === "SCHEDULED" &&
+                      qualityCapabilities.canPerform &&
+                      isInspector ? (
+                        <div className="mt-4">
+                          <StartInspectionControl
+                            inspectionId={inspection.id}
+                            projectId={projectId}
+                            workId={work.id}
+                          />
+                        </div>
+                      ) : null}
+                      {inspection.status === "IN_INSPECTION" &&
+                      qualityCapabilities.canAccept &&
+                      isInspector ? (
+                        <AcceptInspectionControl
+                          inspectionId={inspection.id}
+                          projectId={projectId}
+                          workId={work.id}
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="text-lg font-semibold text-slate-950">Блокировки</h2>
+        {capabilities.canBlockWork &&
+        !["ACCEPTED", "CLOSED", "CANCELLED", "PAUSED"].includes(work.status) ? (
+          <OpenWorkBlockerControl projectId={projectId} workId={work.id} />
+        ) : null}
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <div>
+            <h3 className="font-semibold text-slate-950">Активные</h3>
+            {activeBlockers.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-600">
+                Активных блокировок нет.
+              </p>
+            ) : (
+              <ol className="mt-3 space-y-3">
+                {activeBlockers.map((blocker) => (
+                  <li
+                    className="rounded-xl border border-amber-200 bg-amber-50 p-4"
+                    key={blocker.id}
+                  >
+                    <div className="flex flex-wrap justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-amber-800">
+                          {workBlockerCategoryLabels[
+                            blocker.category as WorkBlockerCategory
+                          ] ?? blocker.category}
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-950">
+                          {blocker.title}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-amber-800">
+                        {workBlockerStatusLabels.OPEN}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {blocker.description}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-600">
+                      Открыл {blocker.openedByLabel} ·{" "}
+                      {formatDateTime(blocker.opened_at)}
+                    </p>
+                    {capabilities.canBlockWork ? (
+                      <ResolveWorkBlockerControl
+                        projectId={projectId}
+                        workBlockerId={blocker.id}
+                        workId={work.id}
+                      />
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+          <div>
+            <h3 className="font-semibold text-slate-950">История</h3>
+            {resolvedBlockers.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-600">
+                Устранённых блокировок нет.
+              </p>
+            ) : (
+              <ol className="mt-3 space-y-3">
+                {resolvedBlockers.map((blocker) => (
+                  <li
+                    className="rounded-xl border border-slate-200 p-4"
+                    key={blocker.id}
+                  >
+                    <div className="flex flex-wrap justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+                          {workBlockerCategoryLabels[
+                            blocker.category as WorkBlockerCategory
+                          ] ?? blocker.category}
+                        </p>
+                        <p className="mt-1 font-semibold text-slate-950">
+                          {blocker.title}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-emerald-700">
+                        {workBlockerStatusLabels.RESOLVED}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {blocker.description}
+                    </p>
+                    <p className="mt-2 text-xs text-slate-600">
+                      Открыл {blocker.openedByLabel} ·{" "}
+                      {formatDateTime(blocker.opened_at)}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-700">
+                      Результат: {blocker.resolution_note}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Устранил {blocker.resolvedByLabel} ·{" "}
+                      {formatDateTime(blocker.resolved_at)}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+      </section>
 
       <DocumentWorkLinkManager
         canManage={linkData.canManage}
@@ -320,7 +637,16 @@ export default async function WorkDetailsPage({
                     {entry.returnerLabel}
                   </p>
                 ) : null}
+                {entry.daily_report_id ? (
+                  <Link
+                    className="mt-3 block text-sm text-emerald-800 underline"
+                    href={`/app/projects/${projectId}/daily-reports/${entry.daily_report_id}`}
+                  >
+                    Дневной отчёт — решение по всему отчёту
+                  </Link>
+                ) : null}
                 {canConfirmProgress &&
+                !entry.daily_report_id &&
                 entry.confirmation_status === "REPORTED" ? (
                   <WorkProgressDecisionControls
                     projectId={projectId}

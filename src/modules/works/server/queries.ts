@@ -3,6 +3,7 @@ import "server-only";
 import { createServerSupabaseClient } from "@/server/supabase/server";
 
 import type { WorkFilters } from "../model/schemas";
+import { parseWorkReadiness } from "../model/readiness";
 
 function queryError(message: string): never {
   throw new Error(message);
@@ -155,7 +156,7 @@ export async function getWorkDetails(projectId: string, workId: string) {
       supabase
         .from("work_progress_entries")
         .select(
-          "id, work_date, quantity, note, created_by, created_at, confirmation_status, confirmed_at, confirmed_by, returned_at, returned_by, return_reason",
+          "id, work_date, quantity, note, created_by, created_at, confirmation_status, confirmed_at, confirmed_by, returned_at, returned_by, return_reason, daily_report_id",
         )
         .eq("project_id", projectId)
         .eq("work_id", workId)
@@ -234,6 +235,39 @@ export async function getWorkDetails(projectId: string, workId: string) {
             : "Пользователь проекта",
     })),
   };
+}
+
+export async function getWorkReadiness(workId: string) {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.rpc("get_work_readiness", {
+    p_work_id: workId,
+  });
+  if (error) queryError("Не удалось проверить готовность работы.");
+  return parseWorkReadiness(data);
+}
+
+export async function getWorkBlockers(projectId: string, workId: string) {
+  const supabase = await createServerSupabaseClient();
+  const ownMemberId = await getOwnProjectMemberId(projectId);
+  const { data, error } = await supabase
+    .from("work_blockers")
+    .select(
+      "id, category, title, description, status, opened_by_project_member_id, opened_at, resolved_by_project_member_id, resolved_at, resolution_note",
+    )
+    .eq("project_id", projectId)
+    .eq("work_id", workId)
+    .order("opened_at", { ascending: false });
+  if (error) queryError("Не удалось загрузить блокировки работы.");
+  return data.map((blocker) => ({
+    ...blocker,
+    openedByLabel: memberLabel(
+      blocker.opened_by_project_member_id,
+      ownMemberId,
+    ),
+    resolvedByLabel: blocker.resolved_by_project_member_id
+      ? memberLabel(blocker.resolved_by_project_member_id, ownMemberId)
+      : null,
+  }));
 }
 
 export async function getWorkCapabilities(projectId: string) {

@@ -3,6 +3,8 @@ import "server-only";
 import { createServerSupabaseClient } from "@/server/supabase/server";
 
 export type WorkCommandErrorCode =
+  | "BLOCKER_STALE"
+  | "BLOCKER_UNAVAILABLE"
   | "FORBIDDEN"
   | "INVALID_DATES"
   | "INVALID_QUANTITY_UNIT"
@@ -12,7 +14,8 @@ export type WorkCommandErrorCode =
   | "WORK_DUPLICATE"
   | "WORK_NOT_FOUND"
   | "PROGRESS_STALE"
-  | "PROGRESS_UNAVAILABLE";
+  | "PROGRESS_UNAVAILABLE"
+  | "READINESS_FAILED";
 
 export class WorkCommandError extends Error {
   constructor(readonly code: WorkCommandErrorCode) {
@@ -53,9 +56,56 @@ function mapInsertError(error: { code?: string; message?: string }): never {
 function mapLifecycleError(error: { code?: string }): never {
   if (error.code === "42501") throw new WorkCommandError("FORBIDDEN");
   if (error.code === "P0002") throw new WorkCommandError("WORK_NOT_FOUND");
+  if (error.code === "WR001") throw new WorkCommandError("READINESS_FAILED");
   if (error.code === "22023")
     throw new WorkCommandError("TRANSITION_UNAVAILABLE");
+  if (["WB005", "WB006"].includes(error.code ?? ""))
+    throw new WorkCommandError("TRANSITION_UNAVAILABLE");
   throw new WorkCommandError("UNEXPECTED");
+}
+
+function mapBlockerError(error: { code?: string }): never {
+  if (error.code === "42501") throw new WorkCommandError("FORBIDDEN");
+  if (error.code === "P0002") throw new WorkCommandError("WORK_NOT_FOUND");
+  if (error.code === "WB004") throw new WorkCommandError("BLOCKER_STALE");
+  if (["22023", "WB002", "WB003"].includes(error.code ?? "")) {
+    throw new WorkCommandError("BLOCKER_UNAVAILABLE");
+  }
+  throw new WorkCommandError("UNEXPECTED");
+}
+
+export async function openWorkBlockerCommand(input: {
+  category: string;
+  commandId: string;
+  description: string;
+  title: string;
+  workId: string;
+}) {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.rpc("open_work_blocker", {
+    p_category: input.category,
+    p_command_id: input.commandId,
+    p_description: input.description,
+    p_title: input.title,
+    p_work_id: input.workId,
+  });
+  if (error) mapBlockerError(error);
+  return data;
+}
+
+export async function resolveWorkBlockerCommand(input: {
+  commandId: string;
+  resolutionNote: string;
+  workBlockerId: string;
+}) {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.rpc("resolve_work_blocker", {
+    p_command_id: input.commandId,
+    p_resolution_note: input.resolutionNote,
+    p_work_blocker_id: input.workBlockerId,
+  });
+  if (error) mapBlockerError(error);
+  return data;
 }
 
 export async function reportWorkProgressCommand(input: {

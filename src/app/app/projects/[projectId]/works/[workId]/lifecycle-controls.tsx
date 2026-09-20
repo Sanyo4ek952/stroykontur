@@ -96,18 +96,33 @@ function LifecycleButton({
 export function WorkLifecycleControls({
   availableActions,
   projectId,
+  unavailableReasons = [],
   workId,
 }: {
   availableActions: WorkLifecycleActionName[];
   projectId: string;
+  unavailableReasons?: string[];
   workId: string;
 }) {
-  if (availableActions.length === 0) return null;
+  if (availableActions.length === 0 && unavailableReasons.length === 0)
+    return null;
   return (
     <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
       <h2 className="text-lg font-semibold text-slate-950">
         Действия с работой
       </h2>
+      {unavailableReasons.length > 0 ? (
+        <div className="mt-3 rounded-xl border border-red-200 bg-white p-3">
+          <p className="text-sm font-semibold text-red-800">
+            Переход сейчас недоступен:
+          </p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-700">
+            {unavailableReasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <div className="mt-4 flex flex-wrap gap-3">
         {availableActions.map((actionName) => (
           <LifecycleButton

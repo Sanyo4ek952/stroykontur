@@ -5,8 +5,18 @@ import { promisify } from "node:util";
 
 export type Credentials = { email: string; password: string };
 type Scenario = {
+  namespace: string;
   ids: {
+    organization: string;
+    subcontractorOrganization: string;
+    projectOrganization: string;
+    subcontractorProjectOrganization: string;
+    projectMember: string;
     workCreatorProjectMember: string;
+    workQualityProjectMember: string;
+    fieldProjectMember: string;
+    siteManagerProjectMember: string;
+    areaBConfirmerProjectMember: string;
     project: string;
     work: string;
     blockedWork: string;
@@ -16,12 +26,15 @@ type Scenario = {
     reworkWork: string;
     areaA: string;
     areaB: string;
+    dailyReportWork: string;
+    qualityWork: string;
   };
   demoUser: Credentials;
   manager: Credentials;
   quality: Credentials;
   field: Credentials;
   siteManager: Credentials;
+  areaBConfirmer: Credentials;
 };
 
 export const test = base.extend<{ scenario: Scenario }>({

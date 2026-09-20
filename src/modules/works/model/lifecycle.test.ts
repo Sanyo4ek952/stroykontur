@@ -18,16 +18,19 @@ describe("Work lifecycle controls", () => {
     ["READY", ["start"]],
     ["IN_PROGRESS", ["readyForInspection", "block"]],
     ["BLOCKED", ["resume"]],
-    ["READY_FOR_INSPECTION", ["accept", "rework"]],
+    ["READY_FOR_INSPECTION", []],
     ["ACCEPTED", ["close"]],
     ["CLOSED", []],
     ["REWORK_REQUIRED", []],
     ["PAUSED", []],
     ["CANCELLED", []],
   ])("projects only approved transitions for %s", (status, expected) => {
-    expect(getWorkLifecycleActions(status as string, capabilities)).toEqual(
-      expected,
-    );
+    expect(
+      getWorkLifecycleActions(status as string, capabilities, {
+        activeBlockerCount: status === "IN_PROGRESS" ? 1 : 0,
+        isReady: true,
+      }),
+    ).toEqual(expected);
   });
   it.each([
     ["PLANNED", "canMarkWorkReady", "ready"],
@@ -35,12 +38,37 @@ describe("Work lifecycle controls", () => {
     ["IN_PROGRESS", "canMarkWorkReadyForInspection", "readyForInspection"],
     ["IN_PROGRESS", "canBlockWork", "block"],
     ["BLOCKED", "canBlockWork", "resume"],
-    ["READY_FOR_INSPECTION", "canAcceptWork", "accept"],
-    ["READY_FOR_INSPECTION", "canRequireWorkRework", "rework"],
     ["ACCEPTED", "canCloseWork", "close"],
   ])("hides %s action without %s", (status, permission, action) => {
     expect(
-      getWorkLifecycleActions(status, { ...capabilities, [permission]: false }),
+      getWorkLifecycleActions(
+        status,
+        { ...capabilities, [permission]: false },
+        { activeBlockerCount: status === "IN_PROGRESS" ? 1 : 0, isReady: true },
+      ),
     ).not.toContain(action);
+  });
+
+  it("hides ready/start while readiness fails", () => {
+    const context = { activeBlockerCount: 0, isReady: false };
+    expect(getWorkLifecycleActions("PLANNED", capabilities, context)).toEqual(
+      [],
+    );
+    expect(getWorkLifecycleActions("READY", capabilities, context)).toEqual([]);
+  });
+
+  it("requires an active blocker to block and none to resume", () => {
+    expect(
+      getWorkLifecycleActions("IN_PROGRESS", capabilities, {
+        activeBlockerCount: 0,
+        isReady: false,
+      }),
+    ).not.toContain("block");
+    expect(
+      getWorkLifecycleActions("BLOCKED", capabilities, {
+        activeBlockerCount: 1,
+        isReady: false,
+      }),
+    ).not.toContain("resume");
   });
 });

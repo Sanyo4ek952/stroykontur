@@ -1,0 +1,96 @@
+name: Pilot CI
+
+on:
+  push:
+    branches:
+      - codex/pilot
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilot-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify local pilot baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Activate packageManager pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack install --global "$(node -p "require('./package.json').packageManager")"
+          pnpm --version
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase
+        run: pnpm db:start
+
+      - name: Export local public Supabase environment
+        shell: bash
+        run: |
+          pnpm --silent supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          source "$RUNNER_TEMP/supabase.env"
+          echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${PUBLISHABLE_KEY:-$ANON_KEY}" >> "$GITHUB_ENV"
+
+      - name: Reset local database
+        run: pnpm db:reset
+
+      - name: Seed deterministic local demo
+        run: pnpm demo:seed
+
+      - name: Run database and RLS tests
+        run: pnpm db:test
+
+      - name: Verify generated database types
+        shell: bash
+        run: |
+          pnpm db:types
+          git diff --exit-code -- src/server/supabase/database.types.ts
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Run unit tests
+        run: pnpm test
+
+      - name: Build production application
+        run: pnpm build
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run full Playwright suite
+        run: pnpm test:e2e -- --workers=1
+
+      - name: Upload Playwright failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

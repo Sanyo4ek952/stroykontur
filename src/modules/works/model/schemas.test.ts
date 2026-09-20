@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   parseWorkFilters,
+  workBlockerOpenSchema,
+  workBlockerResolveSchema,
   workProgressReturnSchema,
   workSchema,
 } from "./schemas";
@@ -75,6 +77,35 @@ describe("workProgressReturnSchema", () => {
     expect(workProgressReturnSchema.safeParse({ reason: "   " }).success).toBe(
       false,
     );
+  });
+});
+
+describe("WorkBlocker schemas", () => {
+  it("trims a valid controlled blocker", () => {
+    expect(
+      workBlockerOpenSchema.parse({
+        category: "TECHNICAL",
+        description: "  Требуется доступ к узлу  ",
+        title: "  Нет доступа  ",
+      }),
+    ).toEqual({
+      category: "TECHNICAL",
+      description: "Требуется доступ к узлу",
+      title: "Нет доступа",
+    });
+  });
+
+  it("rejects unknown categories and empty resolution notes", () => {
+    expect(
+      workBlockerOpenSchema.safeParse({
+        category: "SUPPLY",
+        description: "Причина",
+        title: "Проблема",
+      }).success,
+    ).toBe(false);
+    expect(
+      workBlockerResolveSchema.safeParse({ resolutionNote: "  " }).success,
+    ).toBe(false);
   });
 });
 
