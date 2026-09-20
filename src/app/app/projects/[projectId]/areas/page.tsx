@@ -36,6 +36,7 @@ export default async function AreasPage({
       {caps.canManage ? (
         <form
           action={async (data) => {
+            "use server";
             await createArea(projectId, data);
           }}
           className="mb-6 grid gap-3 rounded-2xl border p-4 sm:grid-cols-3"
@@ -86,6 +87,7 @@ export default async function AreasPage({
                 {caps.canManage ? (
                   <form
                     action={async (data) => {
+                      "use server";
                       await editArea(projectId, data);
                     }}
                     className="mt-4 grid gap-2 sm:grid-cols-3"
@@ -112,6 +114,7 @@ export default async function AreasPage({
                 {caps.canAssign ? (
                   <form
                     action={async (data) => {
+                      "use server";
                       await assignAreaMember(projectId, data);
                     }}
                     className="mt-4 flex flex-wrap gap-2"
@@ -153,6 +156,7 @@ export default async function AreasPage({
                       ) : caps.canAssign ? (
                         <form
                           action={async (data) => {
+                            "use server";
                             await removeAreaMember(projectId, data);
                           }}
                           className="mt-2 flex gap-2"

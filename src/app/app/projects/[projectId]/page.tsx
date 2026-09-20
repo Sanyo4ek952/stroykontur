@@ -9,23 +9,28 @@ export default async function ProjectOverviewPage({
 }: PageProps<"/app/projects/[projectId]">) {
   const { projectId } = await params;
   const overview = await getProjectOverview(projectId);
+  const projectPath = `/app/projects/${projectId}`;
   const metrics = [
     {
-      href: "tasks",
+      href: `${projectPath}/tasks`,
       label: "Мои открытые задачи",
       value: overview.openTaskCount,
     },
     {
-      href: "notifications",
+      href: `${projectPath}/notifications`,
       label: "Непрочитанные уведомления",
       value: overview.unreadNotificationCount,
     },
     {
-      href: "documents",
+      href: `${projectPath}/documents`,
       label: "Технические документы",
       value: overview.documentCount,
     },
-    { href: "works", label: "Работы проекта", value: overview.workCount },
+    {
+      href: `${projectPath}/works`,
+      label: "Работы проекта",
+      value: overview.workCount,
+    },
   ];
 
   return (
