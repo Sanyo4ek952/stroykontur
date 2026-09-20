@@ -9,10 +9,31 @@ function queryError(message: string): never {
   throw new Error(message);
 }
 
-function memberLabel(memberId: string, ownMemberId: string | null) {
+function memberLabel(
+  memberId: string,
+  ownMemberId: string | null,
+  labels: ReadonlyMap<string, string> = new Map(),
+) {
+  const label = labels.get(memberId);
+  if (label) return memberId === ownMemberId ? `${label} (вы)` : label;
   return memberId === ownMemberId
     ? "Вы"
     : `Участник проекта · ${memberId.slice(0, 8)}`;
+}
+
+function assignmentCandidatePresentation(candidate: {
+  display_name: string | null;
+  role_names: string[] | null;
+}) {
+  const name = candidate.display_name?.trim() || "Участник проекта";
+  const role = candidate.role_names?.join(", ") || "Роль не указана";
+  return { label: `${name} · ${role}`, name, role };
+}
+
+function hasCandidateId<T extends { id: string | null }>(
+  candidate: T,
+): candidate is T & { id: string } {
+  return candidate.id !== null;
 }
 
 async function getOwnProjectMemberId(projectId: string) {
@@ -71,7 +92,12 @@ export async function getWorks(projectId: string, filters: WorkFilters) {
   if (error) queryError("Не удалось загрузить работы проекта.");
   if (works.length === 0) return [];
 
-  const [ownMemberId, assignmentsResult, areasResult] = await Promise.all([
+  const [
+    ownMemberId,
+    assignmentsResult,
+    areasResult,
+    assignmentCandidatesResult,
+  ] = await Promise.all([
     getOwnProjectMemberId(projectId),
     supabase
       .from("work_assignments")
@@ -86,10 +112,26 @@ export async function getWorks(projectId: string, filters: WorkFilters) {
       .from("project_areas")
       .select("id, code, name")
       .eq("project_id", projectId),
+    supabase
+      .from("work_assignment_candidates")
+      .select("id, display_name, role_names")
+      .eq("project_id", projectId),
   ]);
-  if (assignmentsResult.error || areasResult.error)
+  if (
+    assignmentsResult.error ||
+    areasResult.error ||
+    assignmentCandidatesResult.error
+  )
     queryError("Не удалось загрузить ответственных.");
   const areas = new Map(areasResult.data.map((area) => [area.id, area]));
+  const assignmentLabels = new Map(
+    assignmentCandidatesResult.data
+      .filter(hasCandidateId)
+      .map((candidate) => [
+        candidate.id,
+        assignmentCandidatePresentation(candidate).label,
+      ]),
+  );
 
   const assignments = new Map(
     assignmentsResult.data.map((assignment) => [
@@ -105,7 +147,11 @@ export async function getWorks(projectId: string, filters: WorkFilters) {
       ...work,
       areaLabel: area ? `${area.code} · ${area.name}` : "Зона не назначена",
       responsibleLabel: assignment
-        ? memberLabel(assignment.project_member_id, ownMemberId)
+        ? memberLabel(
+            assignment.project_member_id,
+            ownMemberId,
+            assignmentLabels,
+          )
         : null,
     };
   });
@@ -136,41 +182,60 @@ export async function getWorkDetails(projectId: string, workId: string) {
     : { data: null, error: null };
   if (workAreaError) queryError("Не удалось загрузить зону работы.");
 
-  const [ownMemberId, assignmentsResult, dependenciesResult, progressResult] =
-    await Promise.all([
-      getOwnProjectMemberId(projectId),
-      supabase
-        .from("work_assignments")
-        .select(
-          "id, project_member_id, assigned_by, assigned_at, ended_at, end_reason, assignment_reason",
-        )
-        .eq("project_id", projectId)
-        .eq("work_id", workId)
-        .order("assigned_at", { ascending: false }),
-      supabase
-        .from("work_dependencies")
-        .select("id, dependent_work_id, depends_on_work_id")
-        .eq("project_id", projectId)
-        .is("removed_at", null)
-        .or(`dependent_work_id.eq.${workId},depends_on_work_id.eq.${workId}`),
-      supabase
-        .from("work_progress_entries")
-        .select(
-          "id, work_date, quantity, note, created_by, created_at, confirmation_status, confirmed_at, confirmed_by, returned_at, returned_by, return_reason, daily_report_id",
-        )
-        .eq("project_id", projectId)
-        .eq("work_id", workId)
-        .order("work_date", { ascending: false })
-        .order("created_at", { ascending: false }),
-    ]);
+  const [
+    ownMemberId,
+    assignmentsResult,
+    dependenciesResult,
+    progressResult,
+    assignmentCandidatesResult,
+  ] = await Promise.all([
+    getOwnProjectMemberId(projectId),
+    supabase
+      .from("work_assignments")
+      .select(
+        "id, project_member_id, assigned_by, assigned_at, ended_at, end_reason, assignment_reason",
+      )
+      .eq("project_id", projectId)
+      .eq("work_id", workId)
+      .order("assigned_at", { ascending: false }),
+    supabase
+      .from("work_dependencies")
+      .select("id, dependent_work_id, depends_on_work_id")
+      .eq("project_id", projectId)
+      .is("removed_at", null)
+      .or(`dependent_work_id.eq.${workId},depends_on_work_id.eq.${workId}`),
+    supabase
+      .from("work_progress_entries")
+      .select(
+        "id, work_date, quantity, note, created_by, created_at, confirmation_status, confirmed_at, confirmed_by, returned_at, returned_by, return_reason, daily_report_id",
+      )
+      .eq("project_id", projectId)
+      .eq("work_id", workId)
+      .order("work_date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("work_assignment_candidates")
+      .select("id, display_name, role_names")
+      .eq("project_id", projectId),
+  ]);
 
   if (
     assignmentsResult.error ||
     dependenciesResult.error ||
-    progressResult.error
+    progressResult.error ||
+    assignmentCandidatesResult.error
   ) {
     queryError("Не удалось загрузить историю работы.");
   }
+
+  const assignmentLabels = new Map(
+    assignmentCandidatesResult.data
+      .filter(hasCandidateId)
+      .map((candidate) => [
+        candidate.id,
+        assignmentCandidatePresentation(candidate).label,
+      ]),
+  );
 
   const dependencyWorkIds = [
     ...new Set(
@@ -197,7 +262,11 @@ export async function getWorkDetails(projectId: string, workId: string) {
     ...assignment,
     assignedByLabel:
       assignment.assigned_by === currentUserId ? "Вы" : "Пользователь проекта",
-    responsibleLabel: memberLabel(assignment.project_member_id, ownMemberId),
+    responsibleLabel: memberLabel(
+      assignment.project_member_id,
+      ownMemberId,
+      assignmentLabels,
+    ),
   }));
 
   return {
@@ -371,16 +440,14 @@ export async function getWorkAssignmentCandidates(projectId: string) {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from("work_assignment_candidates")
-    .select("id")
+    .select("id, display_name, role_names")
     .eq("project_id", projectId)
-    .order("id");
+    .order("display_name");
   if (error) queryError("Не удалось загрузить участников для назначения.");
-  return data
-    .filter((member): member is { id: string } => member.id !== null)
-    .map((member) => ({
-      id: member.id,
-      label: `Участник проекта · ${member.id.slice(0, 8)}`,
-    }));
+  return data.filter(hasCandidateId).map((member) => ({
+    id: member.id,
+    ...assignmentCandidatePresentation(member),
+  }));
 }
 
 async function canManageWorkProgressInArea(
